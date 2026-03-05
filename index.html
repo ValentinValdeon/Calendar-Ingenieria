@@ -257,6 +257,75 @@
             Agregar horario
           </button>
         </div>
+
+        <!-- ── INFORMACIÓN ADICIONAL ── -->
+        <details id="materia-extra" class="materia-extra-details">
+          <summary class="materia-extra-summary">Información adicional</summary>
+
+          <div class="materia-extra-body">
+
+            <!-- Links -->
+            <div class="form-group">
+              <label class="form-label">Links</label>
+              <div class="links-list" id="links-list">
+                <!-- Generado por JS -->
+              </div>
+              <button type="button" class="btn btn-ghost btn-add-row" id="btn-add-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Agregar link
+              </button>
+            </div>
+
+            <!-- Profesores -->
+            <div class="form-group">
+              <label class="form-label">Profesores</label>
+              <div class="profesores-list" id="profesores-list">
+                <!-- Generado por JS -->
+              </div>
+              <button type="button" class="btn btn-ghost btn-add-row" id="btn-add-profesor">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Agregar profesor
+              </button>
+            </div>
+
+            <!-- Regularización -->
+            <div class="form-group">
+              <label class="form-label">Regularización</label>
+              <div class="extra-inline-row">
+                <div class="extra-inline-field">
+                  <label class="form-label-sm" for="reg-asistencia">Asistencia mín.</label>
+                  <div class="input-suffix-wrap">
+                    <input type="number" id="reg-asistencia" class="form-input form-input-sm" min="0" max="100" placeholder="75" />
+                    <span class="input-suffix">%</span>
+                  </div>
+                </div>
+                <div class="extra-inline-field">
+                  <label class="form-label-sm" for="reg-nota">Nota mín. parciales</label>
+                  <input type="number" id="reg-nota" class="form-input form-input-sm" min="0" max="10" step="0.5" placeholder="4" />
+                </div>
+              </div>
+              <textarea id="reg-desc" class="form-input form-textarea" rows="2" placeholder="Descripción adicional (ej: 2 parciales, recuperatorio único…)"></textarea>
+            </div>
+
+            <!-- Promoción -->
+            <div class="form-group">
+              <label class="form-label">Promoción</label>
+              <div class="extra-inline-row">
+                <div class="extra-inline-field">
+                  <label class="form-label-sm" for="prom-nota">Nota mín. promedio</label>
+                  <input type="number" id="prom-nota" class="form-input form-input-sm" min="0" max="10" step="0.5" placeholder="7" />
+                </div>
+              </div>
+              <textarea id="prom-desc" class="form-input form-textarea" rows="2" placeholder="Descripción adicional (ej: sin aplazos, parciales ≥ 6…)"></textarea>
+            </div>
+
+          </div>
+        </details>
+
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" data-close="modal-materia">Cancelar</button>

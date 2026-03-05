@@ -678,6 +678,134 @@ body {
   font-size: 13px;
 }
 
+/* ── ACORDEÓN INFO PANEL ─────────────────────────────────── */
+.materia-entry {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Flecha indicadora en la fila cuando hay panel */
+.materia-item::before {
+  content: '';
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--text-muted);
+  border-bottom: 1.5px solid var(--text-muted);
+  transform: rotate(-45deg);
+  transition: transform 0.2s ease, border-color 0.2s;
+  flex-shrink: 0;
+  margin-right: 2px;
+  margin-left: 2px;
+}
+
+.materia-entry.expanded .materia-item::before {
+  transform: rotate(45deg);
+  border-color: var(--indigo-500);
+}
+
+.materia-entry.expanded .materia-item {
+  background: var(--bg-alt);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.materia-info-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.28s ease, padding 0.2s ease;
+  background: var(--bg-alt);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  padding: 0 12px;
+}
+
+.materia-entry.expanded .materia-info-panel {
+  max-height: 600px;
+  padding: 10px 12px 12px;
+}
+
+/* Filas del panel */
+.ip-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  padding: 4px 0;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-light);
+}
+.ip-row:last-child { border-bottom: none; }
+
+.ip-icon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--text-muted);
+}
+
+.ip-link-anchor {
+  color: var(--indigo-500);
+  text-decoration: none;
+  word-break: break-all;
+  font-size: 12px;
+}
+.ip-link-anchor:hover { text-decoration: underline; }
+
+.ip-profesor-nombre {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.ip-profesor-mail {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-decoration: none;
+  margin-left: 6px;
+}
+.ip-profesor-mail:hover { color: var(--indigo-500); text-decoration: underline; }
+
+.ip-cursada-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ip-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+.ip-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ip-chip {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+.ip-chip-reg  { background: #DBEAFE; color: #1E40AF; }
+.ip-chip-prom { background: #FEF3C7; color: #92400E; }
+
+.ip-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.ip-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 4px 0 2px;
+  line-height: 1.5;
+  margin: 0;
+}
+
 /* ── EVENTOS FILTER ──────────────────────────────────────── */
 .eventos-filter {
   display: flex;
@@ -1105,6 +1233,133 @@ body {
   border-color: var(--indigo-500);
   color: var(--indigo-600);
   background: var(--indigo-50);
+}
+
+/* ── MODAL EXTRA: detalles de materia ────────────────────── */
+.materia-extra-details {
+  border-top: 1px solid var(--border-light);
+  margin-top: 4px;
+}
+
+.materia-extra-summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 12px 4px 10px;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  user-select: none;
+  outline: none;
+}
+.materia-extra-summary::-webkit-details-marker { display: none; }
+.materia-extra-summary::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+}
+details[open] .materia-extra-summary::before {
+  transform: rotate(45deg);
+}
+.materia-extra-summary:hover { color: var(--indigo-600); }
+.materia-extra-summary:focus-visible { outline: 2px solid var(--indigo-500); border-radius: 4px; }
+
+.materia-extra-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-bottom: 4px;
+}
+
+/* Filas dinámicas genéricas (links, profesores) */
+.extra-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.extra-row .form-input { flex: 1; min-width: 0; }
+.extra-row .link-label { flex: 0.65; }
+
+.btn-remove-row {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+}
+.btn-remove-row:hover { background: var(--danger-bg); color: var(--danger); }
+.btn-remove-row svg { width: 15px; height: 15px; }
+
+.btn-add-row {
+  width: 100%;
+  justify-content: center;
+  padding: 8px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+.btn-add-row:hover {
+  border-color: var(--indigo-500);
+  color: var(--indigo-600);
+  background: var(--indigo-50);
+}
+
+/* Campos inline (regularización / promoción) */
+.extra-inline-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.extra-inline-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 110px;
+}
+.form-label-sm {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.form-input-sm {
+  max-width: 100px;
+  padding: 6px 8px;
+}
+.input-suffix-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.input-suffix {
+  font-size: 13px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.form-textarea {
+  resize: vertical;
+  min-height: 52px;
+  line-height: 1.4;
+  font-size: 13px;
 }
 
 /* ── CONFIRM MODAL ───────────────────────────────────────── */

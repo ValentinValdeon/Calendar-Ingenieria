@@ -542,45 +542,144 @@ function renderMateriasList() {
     return;
   }
 
-  list.innerHTML = state.materias.map(mat => `
-    <div class="materia-item" data-id="${mat.id}" role="button" tabindex="0" aria-label="Editar ${mat.nombre}">
-      <div class="materia-dot" style="background:${mat.color}"></div>
-      <div class="materia-info">
-        <div class="materia-nombre">${escapeHtml(mat.nombre)}</div>
-        <div class="materia-horarios-count">${mat.horarios.length} horario${mat.horarios.length !== 1 ? 's' : ''}</div>
-      </div>
-      <div class="materia-actions">
-        <button class="btn-icon" aria-label="Editar ${mat.nombre}" data-action="edit-materia" data-id="${mat.id}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-        </button>
-        <button class="btn-icon" aria-label="Eliminar ${mat.nombre}" data-action="delete-materia" data-id="${mat.id}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-            <path d="M10 11v6"/><path d="M14 11v6"/>
-            <path d="M9 6V4h6v2"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-  `).join('');
+  list.innerHTML = state.materias.map(mat => {
+    const reg  = mat.regularizacion || {};
+    const prom = mat.promocion || {};
+    const hasExtra = (mat.links && mat.links.length) ||
+                     (mat.profesores && mat.profesores.length) ||
+                     reg.asistenciaMin || reg.notaMin || reg.descripcion ||
+                     prom.notaMin || prom.descripcion;
 
+    // ── Panel de info ─────────────────────────────────────
+    let panelHtml = '';
+    if (hasExtra) {
+      let rows = '';
+
+      // Links
+      if (mat.links && mat.links.length) {
+        rows += mat.links.map(l => `
+          <div class="ip-row ip-link">
+            <svg class="ip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            <a href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer" class="ip-link-anchor">${escapeHtml(l.label || l.url)}</a>
+          </div>`).join('');
+      }
+
+      // Profesores
+      if (mat.profesores && mat.profesores.length) {
+        rows += mat.profesores.map(p => `
+          <div class="ip-row ip-profesor">
+            <svg class="ip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <span class="ip-profesor-nombre">${escapeHtml(p.nombre)}</span>
+            ${p.mail ? `<a href="mailto:${escapeHtml(p.mail)}" class="ip-profesor-mail">${escapeHtml(p.mail)}</a>` : ''}
+          </div>`).join('');
+      }
+
+      // Regularización
+      const regChips = [];
+      if (reg.asistenciaMin) regChips.push(`Asist. ≥ ${reg.asistenciaMin}%`);
+      if (reg.notaMin)       regChips.push(`Nota ≥ ${reg.notaMin}`);
+      if (regChips.length || reg.descripcion) {
+        rows += `
+          <div class="ip-row ip-cursada">
+            <svg class="ip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+            <div class="ip-cursada-body">
+              <span class="ip-label">Regularización</span>
+              ${regChips.length ? `<div class="ip-chips">${regChips.map(c => `<span class="ip-chip ip-chip-reg">${c}</span>`).join('')}</div>` : ''}
+              ${reg.descripcion ? `<span class="ip-desc">${escapeHtml(reg.descripcion)}</span>` : ''}
+            </div>
+          </div>`;
+      }
+
+      // Promoción
+      const promChips = [];
+      if (prom.notaMin) promChips.push(`Prom. ≥ ${prom.notaMin}`);
+      if (promChips.length || prom.descripcion) {
+        rows += `
+          <div class="ip-row ip-cursada">
+            <svg class="ip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <div class="ip-cursada-body">
+              <span class="ip-label">Promoción</span>
+              ${promChips.length ? `<div class="ip-chips">${promChips.map(c => `<span class="ip-chip ip-chip-prom">${c}</span>`).join('')}</div>` : ''}
+              ${prom.descripcion ? `<span class="ip-desc">${escapeHtml(prom.descripcion)}</span>` : ''}
+            </div>
+          </div>`;
+      }
+
+      panelHtml = `<div class="materia-info-panel" id="mip-${mat.id}">${rows}</div>`;
+    } else {
+      panelHtml = `<div class="materia-info-panel" id="mip-${mat.id}">
+        <p class="ip-empty">Sin información adicional.<br>Editá la materia para agregar.</p>
+      </div>`;
+    }
+
+    return `
+      <div class="materia-entry" data-id="${mat.id}">
+        <div class="materia-item" data-id="${mat.id}" role="button" tabindex="0" aria-expanded="false" aria-controls="mip-${mat.id}" aria-label="${escapeHtml(mat.nombre)}">
+          <div class="materia-dot" style="background:${mat.color}"></div>
+          <div class="materia-info">
+            <div class="materia-nombre">${escapeHtml(mat.nombre)}</div>
+            <div class="materia-horarios-count">${mat.horarios.length} horario${mat.horarios.length !== 1 ? 's' : ''}</div>
+          </div>
+          <div class="materia-actions">
+            <button class="btn-icon" aria-label="Editar ${escapeHtml(mat.nombre)}" data-action="edit-materia" data-id="${mat.id}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button class="btn-icon" aria-label="Eliminar ${escapeHtml(mat.nombre)}" data-action="delete-materia" data-id="${mat.id}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+                <path d="M9 6V4h6v2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        ${panelHtml}
+      </div>`;
+  }).join('');
+
+  // ── Event listeners ───────────────────────────────────────
   list.querySelectorAll('.materia-item').forEach(el => {
     el.addEventListener('click', e => {
-      if (!e.target.closest('[data-action]')) {
-        const id = el.dataset.id;
-        highlightedMateriaId = (highlightedMateriaId === id) ? null : id;
-        applyMateriaHighlight();
+      if (e.target.closest('[data-action]')) return;
+      const entry = el.closest('.materia-entry');
+      const panel = entry.querySelector('.materia-info-panel');
+      const isOpen = entry.classList.contains('expanded');
+      // Cerrar todos los demás
+      list.querySelectorAll('.materia-entry.expanded').forEach(other => {
+        if (other !== entry) {
+          other.classList.remove('expanded');
+          other.querySelector('.materia-item').setAttribute('aria-expanded', 'false');
+        }
+      });
+      // Toggle este
+      if (isOpen) {
+        entry.classList.remove('expanded');
+        el.setAttribute('aria-expanded', 'false');
+      } else {
+        entry.classList.add('expanded');
+        el.setAttribute('aria-expanded', 'true');
       }
+      // Sin highlight al abrir acordeón
+      highlightedMateriaId = null;
+      applyMateriaHighlight();
     });
     el.addEventListener('keydown', e => {
       if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('[data-action]')) {
         e.preventDefault();
-        const id = el.dataset.id;
-        highlightedMateriaId = (highlightedMateriaId === id) ? null : id;
-        applyMateriaHighlight();
+        el.click();
       }
     });
   });
@@ -598,6 +697,11 @@ function renderMateriasList() {
         () => deleteMateria(btn.dataset.id)
       );
     });
+  });
+
+  // Links del panel — stopPropagation para no disparar el acordeón
+  list.querySelectorAll('.ip-link-anchor, .ip-profesor-mail').forEach(a => {
+    a.addEventListener('click', e => e.stopPropagation());
   });
 }
 
@@ -804,6 +908,110 @@ function getHorariosFromModal() {
   }));
 }
 
+// ── LINKS (modal) ─────────────────────────────────────────
+function buildLinkRow(link = {}, i) {
+  return `
+    <div class="extra-row link-row" data-index="${i}">
+      <input type="text"  class="form-input link-label"  value="${escapeHtml(link.label || '')}" placeholder="Etiqueta (ej: Campus virtual)" aria-label="Etiqueta del link" />
+      <input type="url"   class="form-input link-url"    value="${escapeHtml(link.url   || '')}" placeholder="https://…" aria-label="URL" />
+      <button type="button" class="btn-remove-row" aria-label="Eliminar link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>`;
+}
+
+function renderLinks(links) {
+  const list = document.getElementById('links-list');
+  list.innerHTML = '';
+  (links || []).forEach((l, i) => {
+    const div = document.createElement('div');
+    div.innerHTML = buildLinkRow(l, i);
+    const row = div.firstElementChild;
+    list.appendChild(row);
+    row.querySelector('.btn-remove-row').addEventListener('click', () => {
+      row.remove();
+      list.querySelectorAll('.link-row').forEach((r, j) => r.dataset.index = j);
+    });
+  });
+}
+
+function addLinkRow() {
+  const list = document.getElementById('links-list');
+  const idx  = list.querySelectorAll('.link-row').length;
+  const div  = document.createElement('div');
+  div.innerHTML = buildLinkRow({}, idx);
+  const row = div.firstElementChild;
+  list.appendChild(row);
+  row.querySelector('.btn-remove-row').addEventListener('click', () => {
+    row.remove();
+    list.querySelectorAll('.link-row').forEach((r, j) => r.dataset.index = j);
+  });
+  row.querySelector('.link-label').focus();
+}
+
+function getLinksFromModal() {
+  return Array.from(document.querySelectorAll('#links-list .link-row'))
+    .map(row => ({
+      label: row.querySelector('.link-label').value.trim(),
+      url:   row.querySelector('.link-url').value.trim(),
+    }))
+    .filter(l => l.url); // descartar filas vacías
+}
+
+// ── PROFESORES (modal) ────────────────────────────────────
+function buildProfesorRow(prof = {}, i) {
+  return `
+    <div class="extra-row profesor-row" data-index="${i}">
+      <input type="text"  class="form-input profesor-nombre" value="${escapeHtml(prof.nombre || '')}" placeholder="Nombre" aria-label="Nombre del profesor" />
+      <input type="email" class="form-input profesor-mail"   value="${escapeHtml(prof.mail   || '')}" placeholder="Mail (opcional)" aria-label="Mail del profesor" />
+      <button type="button" class="btn-remove-row" aria-label="Eliminar profesor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>`;
+}
+
+function renderProfesores(profesores) {
+  const list = document.getElementById('profesores-list');
+  list.innerHTML = '';
+  (profesores || []).forEach((p, i) => {
+    const div = document.createElement('div');
+    div.innerHTML = buildProfesorRow(p, i);
+    const row = div.firstElementChild;
+    list.appendChild(row);
+    row.querySelector('.btn-remove-row').addEventListener('click', () => {
+      row.remove();
+      list.querySelectorAll('.profesor-row').forEach((r, j) => r.dataset.index = j);
+    });
+  });
+}
+
+function addProfesorRow() {
+  const list = document.getElementById('profesores-list');
+  const idx  = list.querySelectorAll('.profesor-row').length;
+  const div  = document.createElement('div');
+  div.innerHTML = buildProfesorRow({}, idx);
+  const row = div.firstElementChild;
+  list.appendChild(row);
+  row.querySelector('.btn-remove-row').addEventListener('click', () => {
+    row.remove();
+    list.querySelectorAll('.profesor-row').forEach((r, j) => r.dataset.index = j);
+  });
+  row.querySelector('.profesor-nombre').focus();
+}
+
+function getProfesoresFromModal() {
+  return Array.from(document.querySelectorAll('#profesores-list .profesor-row'))
+    .map(row => ({
+      nombre: row.querySelector('.profesor-nombre').value.trim(),
+      mail:   row.querySelector('.profesor-mail').value.trim(),
+    }))
+    .filter(p => p.nombre); // descartar filas sin nombre
+}
+
 // ── MODAL MATERIA ─────────────────────────────────────────
 function openNewMateria() {
   document.getElementById('materia-id').value    = '';
@@ -814,6 +1022,15 @@ function openNewMateria() {
   const nextColor  = MATERIA_COLORS.find(c => !usedColors.includes(c)) || MATERIA_COLORS[0];
   renderColorPicker(nextColor);
   renderHorarios([{ dia: 'Lunes', inicio: '08:00', fin: '10:00', lugar: '' }]);
+  // Limpiar campos extra
+  renderLinks([]);
+  renderProfesores([]);
+  document.getElementById('reg-asistencia').value = '';
+  document.getElementById('reg-nota').value        = '';
+  document.getElementById('reg-desc').value        = '';
+  document.getElementById('prom-nota').value       = '';
+  document.getElementById('prom-desc').value       = '';
+  document.getElementById('materia-extra').removeAttribute('open');
   openModal('modal-materia');
   document.getElementById('materia-nombre').focus();
 }
@@ -826,6 +1043,26 @@ function openEditMateria(id) {
   document.getElementById('modal-materia-title').textContent = 'Editar materia';
   renderColorPicker(mat.color);
   renderHorarios(mat.horarios);
+  // Poblar campos extra
+  renderLinks(mat.links || []);
+  renderProfesores(mat.profesores || []);
+  const reg = mat.regularizacion || {};
+  document.getElementById('reg-asistencia').value = reg.asistenciaMin || '';
+  document.getElementById('reg-nota').value        = reg.notaMin       || '';
+  document.getElementById('reg-desc').value        = reg.descripcion   || '';
+  const prom = mat.promocion || {};
+  document.getElementById('prom-nota').value       = prom.notaMin      || '';
+  document.getElementById('prom-desc').value       = prom.descripcion  || '';
+  // Abrir <details> si hay datos extra
+  const hasExtra = (mat.links && mat.links.length) ||
+                   (mat.profesores && mat.profesores.length) ||
+                   reg.asistenciaMin || reg.notaMin || reg.descripcion ||
+                   prom.notaMin || prom.descripcion;
+  if (hasExtra) {
+    document.getElementById('materia-extra').setAttribute('open', '');
+  } else {
+    document.getElementById('materia-extra').removeAttribute('open');
+  }
   openModal('modal-materia');
   document.getElementById('materia-nombre').focus();
 }
@@ -850,14 +1087,27 @@ function saveMateria() {
 
   const color = getSelectedColor();
 
+  // Leer campos extra
+  const links      = getLinksFromModal();
+  const profesores = getProfesoresFromModal();
+  const regularizacion = {
+    asistenciaMin: document.getElementById('reg-asistencia').value.trim(),
+    notaMin:       document.getElementById('reg-nota').value.trim(),
+    descripcion:   document.getElementById('reg-desc').value.trim(),
+  };
+  const promocion = {
+    notaMin:     document.getElementById('prom-nota').value.trim(),
+    descripcion: document.getElementById('prom-desc').value.trim(),
+  };
+
+  const matData = { id: id || uuid(), nombre, color, horarios, links, profesores, regularizacion, promocion };
+
   if (id) {
-    // Editar
     const idx = state.materias.findIndex(m => m.id === id);
-    state.materias[idx] = { id, nombre, color, horarios };
+    state.materias[idx] = matData;
     showToast(`Materia "${nombre}" actualizada`, 'success');
   } else {
-    // Nueva
-    state.materias.push({ id: uuid(), nombre, color, horarios });
+    state.materias.push(matData);
     showToast(`Materia "${nombre}" agregada`, 'success');
   }
 
@@ -1557,8 +1807,10 @@ async function init() {
     confirmCallback = null;
   });
 
-  // Add horario
+  // Add horario / link / profesor
   document.getElementById('btn-add-horario').addEventListener('click', addHorarioRow);
+  document.getElementById('btn-add-link').addEventListener('click', addLinkRow);
+  document.getElementById('btn-add-profesor').addEventListener('click', addProfesorRow);
 
   // Close modals
   document.querySelectorAll('[data-close]').forEach(btn => {
