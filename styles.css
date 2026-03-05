@@ -417,7 +417,12 @@ body {
 .grid-day-column:last-child { border-right: none; }
 
 .grid-day-column.today-col {
-  background: #FAFBFF;
+  background: #F0F4FF;
+}
+
+.grid-day-header-cell.today-col {
+  background: #EAF0FF;
+  border-top: 2px solid var(--indigo-500);
 }
 
 /* Lineas horizontales de hora dentro de cada columna */
@@ -435,7 +440,7 @@ body {
   position: absolute;
   border-radius: var(--radius-sm);
   padding: 4px 6px;
-  cursor: pointer;
+  cursor: grab;
   overflow: hidden;
   transition: filter var(--transition), box-shadow var(--transition), z-index 0ms;
   box-shadow: inset 3px 0 0 rgba(0,0,0,.20);
@@ -456,6 +461,26 @@ body {
   outline: 2px solid #fff;
   outline-offset: -3px;
   z-index: 10;
+}
+
+/* Materia highlight states */
+.schedule-block.block-highlighted {
+  z-index: 11;
+  box-shadow: inset 3px 0 0 rgba(0,0,0,.25), 0 0 0 2px rgba(255,255,255,0.7), var(--shadow-sm);
+  filter: brightness(1.08);
+}
+.schedule-block.block-dimmed {
+  opacity: 0.28;
+  filter: grayscale(0.4);
+}
+.materia-item.materia-selected {
+  background: var(--bg-alt);
+  outline: 2px solid var(--indigo-500);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+.materia-item.materia-dimmed {
+  opacity: 0.45;
 }
 
 .block-nombre {
@@ -827,6 +852,20 @@ body {
   letter-spacing: 0.5px;
 }
 
+/* Days countdown chips */
+.days-chip {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 20px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+.days-today  { background: #FEF3C7; color: #92400E; }
+.days-soon   { background: #D1FAE5; color: #065F46; }
+.days-future { background: #EDE9FE; color: #5B21B6; }
+.days-past   { background: #F3F4F6; color: #6B7280; }
+
 .eventos-empty {
   padding: 24px 16px;
   text-align: center;
@@ -1076,6 +1115,37 @@ body {
 }
 
 /* ── TOAST ───────────────────────────────────────────────── */
+/* ── BLOCK TOOLTIP ───────────────────────────────────────── */
+#block-tooltip {
+  display: none;
+  position: fixed;
+  z-index: 300;
+  background: #1e1e2e;
+  color: #e2e8f0;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-width: 140px;
+  max-width: 240px;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.tt-nombre {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #f8fafc;
+}
+.tt-row {
+  color: #94a3b8;
+  font-size: 11px;
+}
+.tt-lugar {
+  margin-top: 2px;
+}
+
 .toast-container {
   position: fixed;
   bottom: 20px;

@@ -41,6 +41,7 @@ let state = { materias: [], eventos: [] };
 let currentWeekOffset = 0;   // 0 = semana actual, +1 = proxima, etc.
 let confirmCallback = null;
 let activeEventoFilter = 'all';
+let highlightedMateriaId = null;
 
 // ── UTILS ─────────────────────────────────────────────────
 function uuid() {
@@ -103,6 +104,21 @@ function isPast(dateStr) {
   now.setHours(0, 0, 0, 0);
   const ev = new Date(dateStr + 'T00:00:00');
   return ev < now;
+}
+
+function daysLabel(dateStr) {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const ev = new Date(dateStr + 'T00:00:00');
+  const diff = Math.round((ev - now) / (1000 * 60 * 60 * 24));
+  if (diff === 0)  return { text: 'Hoy',        cls: 'days-today' };
+  if (diff === 1)  return { text: 'Mañana',      cls: 'days-soon' };
+  if (diff === -1) return { text: 'Ayer',        cls: 'days-past' };
+  if (diff > 1 && diff <= 7)  return { text: `En ${diff} días`,       cls: 'days-soon' };
+  if (diff > 7 && diff <= 30) return { text: `En ${diff} días`,       cls: 'days-future' };
+  if (diff > 30)  return { text: `En ${Math.round(diff/7)} semanas`,  cls: 'days-future' };
+  if (diff < -1)  return { text: `Hace ${Math.abs(diff)} días`,       cls: 'days-past' };
+  return null;
 }
 
 // Detecta si dos horarios se superponen
@@ -425,6 +441,7 @@ function renderGrid() {
     // Bloques
     let blocksHtml = '';
     laid.forEach(({ block: { materia, horario }, col, totalCols }) => {
+      const horarioIdx = materia.horarios.indexOf(horario);
       const bStart   = timeToMinutes(horario.inicio);
       const bEnd     = timeToMinutes(horario.fin);
       const topPx    = ((bStart - globalMin) / 60) * ROW_HEIGHT + TOP_PAD;
@@ -448,6 +465,12 @@ function renderGrid() {
           tabindex="0"
           aria-label="${escapeHtml(materia.nombre)}, ${horario.dia} ${horario.inicio}–${horario.fin}${horario.lugar ? ', ' + horario.lugar : ''}"
           data-materia-id="${materia.id}"
+          data-horario-idx="${horarioIdx}"
+          data-nombre="${escapeHtml(materia.nombre)}"
+          data-dia="${escapeHtml(horario.dia)}"
+          data-inicio="${escapeHtml(horario.inicio)}"
+          data-fin="${escapeHtml(horario.fin)}"
+          data-lugar="${escapeHtml(horario.lugar || '')}"
         >
           <div class="block-nombre${tinyBlock ? ' block-nombre-tiny' : ''}">${escapeHtml(materia.nombre)}</div>
           ${!smallBlock ? `<div class="block-hora">${horario.inicio} – ${horario.fin}</div>` : ''}
@@ -474,6 +497,37 @@ function renderGrid() {
         openEditMateria(el.dataset.materiaId);
       }
     });
+  });
+}
+
+// ── HIGHLIGHT DE MATERIA ──────────────────────────────────
+function applyMateriaHighlight() {
+  const id = highlightedMateriaId;
+
+  // Grid blocks
+  document.querySelectorAll('.schedule-block').forEach(el => {
+    if (!id) {
+      el.classList.remove('block-highlighted', 'block-dimmed');
+    } else if (el.dataset.materiaId === id) {
+      el.classList.add('block-highlighted');
+      el.classList.remove('block-dimmed');
+    } else {
+      el.classList.add('block-dimmed');
+      el.classList.remove('block-highlighted');
+    }
+  });
+
+  // Sidebar items
+  document.querySelectorAll('.materia-item').forEach(el => {
+    if (!id) {
+      el.classList.remove('materia-selected', 'materia-dimmed');
+    } else if (el.dataset.id === id) {
+      el.classList.add('materia-selected');
+      el.classList.remove('materia-dimmed');
+    } else {
+      el.classList.add('materia-dimmed');
+      el.classList.remove('materia-selected');
+    }
   });
 }
 
@@ -515,12 +569,18 @@ function renderMateriasList() {
 
   list.querySelectorAll('.materia-item').forEach(el => {
     el.addEventListener('click', e => {
-      if (!e.target.closest('[data-action]')) openEditMateria(el.dataset.id);
+      if (!e.target.closest('[data-action]')) {
+        const id = el.dataset.id;
+        highlightedMateriaId = (highlightedMateriaId === id) ? null : id;
+        applyMateriaHighlight();
+      }
     });
     el.addEventListener('keydown', e => {
       if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('[data-action]')) {
         e.preventDefault();
-        openEditMateria(el.dataset.id);
+        const id = el.dataset.id;
+        highlightedMateriaId = (highlightedMateriaId === id) ? null : id;
+        applyMateriaHighlight();
       }
     });
   });
@@ -566,6 +626,7 @@ function renderEventosList() {
     const proximo = isProximo(ev.fecha);
     const past    = isPast(ev.fecha);
 
+    const dl = daysLabel(ev.fecha);
     return `
       <div class="evento-item${proximo ? ' proximo' : ''}" data-id="${ev.id}" style="${past ? 'opacity:0.55' : ''}" role="button" tabindex="0" aria-label="Editar evento ${ev.titulo}">
         <div class="evento-fecha-badge">
@@ -578,7 +639,7 @@ function renderEventosList() {
             <span class="evento-tipo-chip chip-${ev.tipo}">${TIPO_LABELS[ev.tipo]}</span>
             ${mat ? `<span class="evento-materia-dot" style="background:${mat.color}"></span>
               <span class="evento-materia-nombre">${escapeHtml(mat.nombre)}</span>` : ''}
-            ${proximo ? '<span class="proximo-indicator">Proximo</span>' : ''}
+            ${dl ? `<span class="days-chip ${dl.cls}">${dl.text}</span>` : ''}
           </div>
         </div>
         <div class="evento-actions">
@@ -629,6 +690,7 @@ function renderAll() {
   renderGrid();
   renderMateriasList();
   renderEventosList();
+  applyMateriaHighlight();
 }
 
 // ── MODAL HELPERS ─────────────────────────────────────────
@@ -1109,6 +1171,297 @@ function closeHamburgerMenu() {
   menu.setAttribute('hidden', '');
 }
 
+// ── DRAG TO MOVE HORARIOS ─────────────────────────────────
+(function setupDragBlocks() {
+  let drag = null; // active drag state
+  let ghost = null;
+
+  function getGridInfo() {
+    const layout = document.querySelector('.grid-layout');
+    if (!layout) return null;
+    const dayColumns = Array.from(layout.querySelectorAll('.grid-day-column'));
+    if (dayColumns.length === 0) return null;
+    const layoutRect = layout.getBoundingClientRect();
+    return { layout, dayColumns, layoutRect };
+  }
+
+  // Convert clientY → minutes-from-globalMin, snapped to 15 min
+  function yToMinutes(clientY, layoutRect, globalMin) {
+    const relY = clientY - layoutRect.top - TOP_PAD;
+    const raw  = (relY / ROW_HEIGHT) * 60 + globalMin;
+    return Math.round(raw / 15) * 15;
+  }
+
+  // Find which day column index the clientX falls into (-1 = none)
+  function xToDayIdx(clientX, dayColumns) {
+    for (let i = 0; i < dayColumns.length; i++) {
+      const r = dayColumns[i].getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right) return i;
+    }
+    return -1;
+  }
+
+  function createGhost(sourceEl) {
+    const g = sourceEl.cloneNode(true);
+    const r = sourceEl.getBoundingClientRect();
+    g.style.position   = 'fixed';
+    g.style.width      = r.width + 'px';
+    g.style.height     = r.height + 'px';
+    g.style.top        = r.top  + 'px';
+    g.style.left       = r.left + 'px';
+    g.style.zIndex     = '500';
+    g.style.opacity    = '0.75';
+    g.style.pointerEvents = 'none';
+    g.style.transition = 'none';
+    g.style.cursor     = 'grabbing';
+    g.removeAttribute('data-materia-id');
+    g.id = 'drag-ghost';
+    document.body.appendChild(g);
+    return g;
+  }
+
+  function showDropIndicator(dayColumns, dayIdx, topPx, heightPx) {
+    removeDropIndicator();
+    if (dayIdx < 0 || dayIdx >= dayColumns.length) return;
+    const col = dayColumns[dayIdx];
+    const ind = document.createElement('div');
+    ind.id = 'drag-drop-indicator';
+    ind.style.cssText = `
+      position:absolute;top:${topPx}px;left:2px;right:2px;height:${heightPx - 2}px;
+      background:rgba(99,102,241,0.18);border:2px dashed #6366F1;
+      border-radius:6px;pointer-events:none;z-index:20;
+    `;
+    col.appendChild(ind);
+  }
+
+  function removeDropIndicator() {
+    const old = document.getElementById('drag-drop-indicator');
+    if (old) old.remove();
+  }
+
+  document.addEventListener('mousedown', e => {
+    const block = e.target.closest('.schedule-block');
+    if (!block) return;
+    if (e.button !== 0) return;
+
+    const materiaId  = block.dataset.materiaId;
+    const horarioIdx = parseInt(block.dataset.horarioIdx, 10);
+    const mat = state.materias.find(m => m.id === materiaId);
+    if (!mat || isNaN(horarioIdx)) return;
+    const horario = mat.horarios[horarioIdx];
+    if (!horario) return;
+
+    const blockRect = block.getBoundingClientRect();
+    drag = {
+      block,
+      mat,
+      horario,
+      horarioIdx,
+      startX: e.clientX,
+      startY: e.clientY,
+      offsetX: e.clientX - blockRect.left,
+      offsetY: e.clientY - blockRect.top,
+      durMin: timeToMinutes(horario.fin) - timeToMinutes(horario.inicio),
+      moved: false,
+    };
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!drag) return;
+
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+
+    if (!drag.moved && Math.sqrt(dx * dx + dy * dy) < 8) return;
+
+    if (!drag.moved) {
+      // Start drag visuals
+      drag.moved = true;
+      drag.block.style.opacity = '0.3';
+      ghost = createGhost(drag.block);
+      document.body.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+    }
+
+    // Move ghost
+    ghost.style.top  = (e.clientY - drag.offsetY) + 'px';
+    ghost.style.left = (e.clientX - drag.offsetX) + 'px';
+
+    // Compute snap target
+    const gInfo = getGridInfo();
+    if (!gInfo) return;
+    // Read globalMin from the layout data (stored in first day column's blocks or computed fresh)
+    const globalMin = computeGlobalMin();
+    const snappedStart = yToMinutes(e.clientY - drag.offsetY, gInfo.layoutRect, globalMin);
+    const snappedEnd   = snappedStart + drag.durMin;
+    const dayIdx       = xToDayIdx(e.clientX, gInfo.dayColumns);
+
+    const topPx    = ((snappedStart - globalMin) / 60) * ROW_HEIGHT + TOP_PAD;
+    const heightPx = (drag.durMin / 60) * ROW_HEIGHT;
+
+    showDropIndicator(gInfo.dayColumns, dayIdx, topPx, heightPx);
+    drag._snapDayIdx = dayIdx;
+    drag._snapStart  = snappedStart;
+    drag._snapEnd    = snappedEnd;
+  });
+
+  document.addEventListener('mouseup', e => {
+    if (!drag) return;
+
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    removeDropIndicator();
+
+    if (ghost) { ghost.remove(); ghost = null; }
+    drag.block.style.opacity = '';
+
+    if (drag.moved && drag._snapDayIdx >= 0 && drag._snapDayIdx < DIAS.length) {
+      const newDia    = DIAS[drag._snapDayIdx];
+      const newInicio = minutesToTime(drag._snapStart);
+      const newFin    = minutesToTime(drag._snapEnd);
+
+      // Guard: keep within 0–24h and at least 15 min
+      if (drag._snapStart >= 0 && drag._snapEnd <= 24 * 60 && drag._snapEnd > drag._snapStart) {
+        drag.horario.dia    = newDia;
+        drag.horario.inicio = newInicio;
+        drag.horario.fin    = newFin;
+        saveState();
+        renderAll();
+        showToast(`Horario movido a ${newDia} ${newInicio}–${newFin}`, 'success');
+      }
+    }
+
+    drag = null;
+  });
+
+  // Cancel on Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && drag) {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      removeDropIndicator();
+      if (ghost) { ghost.remove(); ghost = null; }
+      drag.block.style.opacity = '';
+      drag = null;
+    }
+  });
+})();
+
+function computeGlobalMin() {
+  let globalMin = Infinity;
+  state.materias.forEach(mat => {
+    mat.horarios.forEach(h => {
+      const s = timeToMinutes(h.inicio);
+      if (s < globalMin) globalMin = s;
+    });
+  });
+  if (!isFinite(globalMin)) globalMin = 8 * 60;
+  return Math.floor(globalMin / 60) * 60;
+}
+
+// ── SWIPE NAVIGATION (mobile) ─────────────────────────────
+function setupSwipeNavigation() {
+  const wrapper = document.querySelector('.grid-wrapper');
+  if (!wrapper) return;
+
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartScrollLeft = 0;
+
+  wrapper.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartScrollLeft = wrapper.scrollLeft;
+  }, { passive: true });
+
+  wrapper.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+
+    // Only trigger if horizontal swipe dominates and is large enough
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    // Only trigger if the wrapper didn't actually scroll horizontally
+    const scrolled = Math.abs(wrapper.scrollLeft - touchStartScrollLeft);
+    if (scrolled > 20) return;
+
+    if (dx < 0) {
+      currentWeekOffset++;
+    } else {
+      currentWeekOffset--;
+    }
+    renderGrid();
+    applyMateriaHighlight();
+  }, { passive: true });
+}
+
+// ── BLOCK TOOLTIP ─────────────────────────────────────────
+function setupBlockTooltip() {
+  const tooltip = document.getElementById('block-tooltip');
+  if (!tooltip) return;
+
+  let hideTimer = null;
+
+  function showTooltip(block, x, y) {
+    clearTimeout(hideTimer);
+    const nombre = block.dataset.nombre || '';
+    const dia    = block.dataset.dia    || '';
+    const inicio = block.dataset.inicio || '';
+    const fin    = block.dataset.fin    || '';
+    const lugar  = block.dataset.lugar  || '';
+
+    tooltip.innerHTML =
+      `<div class="tt-nombre">${escapeHtml(nombre)}</div>` +
+      `<div class="tt-row">${escapeHtml(dia)} &nbsp;·&nbsp; ${escapeHtml(inicio)} – ${escapeHtml(fin)}</div>` +
+      (lugar ? `<div class="tt-row tt-lugar">${escapeHtml(lugar)}</div>` : '');
+
+    tooltip.style.display = 'block';
+    tooltip.setAttribute('aria-hidden', 'false');
+    positionTooltip(x, y);
+  }
+
+  function positionTooltip(x, y) {
+    const tw = tooltip.offsetWidth;
+    const th = tooltip.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let left = x + 12;
+    let top  = y + 12;
+    if (left + tw > vw - 8) left = x - tw - 12;
+    if (top  + th > vh - 8) top  = y - th - 12;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top  = top  + 'px';
+  }
+
+  function hideTooltip() {
+    hideTimer = setTimeout(() => {
+      tooltip.style.display = 'none';
+      tooltip.setAttribute('aria-hidden', 'true');
+    }, 80);
+  }
+
+  document.addEventListener('mouseover', e => {
+    const block = e.target.closest('.schedule-block');
+    if (block) showTooltip(block, e.clientX, e.clientY);
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (tooltip.style.display === 'block') {
+      const block = e.target.closest('.schedule-block');
+      if (block) positionTooltip(e.clientX, e.clientY);
+    }
+  });
+
+  document.addEventListener('mouseout', e => {
+    const block = e.target.closest('.schedule-block');
+    if (block && !block.contains(e.relatedTarget)) hideTooltip();
+  });
+
+  // Hide on scroll or click
+  document.addEventListener('scroll', hideTooltip, true);
+  document.addEventListener('click',  hideTooltip, true);
+}
+
 // ── INIT: EVENT LISTENERS ─────────────────────────────────
 async function init() {
   await loadState();
@@ -1170,20 +1523,30 @@ async function init() {
     if (!menu.hidden && !menu.contains(e.target) && !btn.contains(e.target)) {
       closeHamburgerMenu();
     }
+    // Deselect materia highlight when clicking outside sidebar or grid blocks
+    if (highlightedMateriaId &&
+        !e.target.closest('.materia-item') &&
+        !e.target.closest('.schedule-block')) {
+      highlightedMateriaId = null;
+      applyMateriaHighlight();
+    }
   });
 
   // Week navigation
   document.getElementById('btn-prev-week').addEventListener('click', () => {
     currentWeekOffset--;
     renderGrid();
+    applyMateriaHighlight();
   });
   document.getElementById('btn-next-week').addEventListener('click', () => {
     currentWeekOffset++;
     renderGrid();
+    applyMateriaHighlight();
   });
   document.getElementById('btn-today').addEventListener('click', () => {
     currentWeekOffset = 0;
     renderGrid();
+    applyMateriaHighlight();
   });
 
   // Save buttons
@@ -1215,6 +1578,29 @@ async function init() {
       closeAllModals();
       closeHamburgerMenu();
     }
+
+    // Atajos de teclado — ignorar si el foco está en un campo de texto
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    // Ignorar si hay un modal abierto (excepto Escape, ya manejado)
+    if (document.querySelector('.modal-overlay[style*="flex"]')) return;
+
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      currentWeekOffset--;
+      renderGrid();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      currentWeekOffset++;
+      renderGrid();
+    } else if (e.key === 't' || e.key === 'T') {
+      currentWeekOffset = 0;
+      renderGrid();
+    } else if (e.key === 'n' || e.key === 'N') {
+      openNewMateria();
+    } else if (e.key === 'e' || e.key === 'E') {
+      openNewEvento();
+    }
   });
 
   // Eventos filter
@@ -1229,6 +1615,12 @@ async function init() {
 
   // Render inicial
   renderAll();
+
+  // Tooltip sobre bloques del grid (delegación global)
+  setupBlockTooltip();
+
+  // Swipe horizontal para navegar semanas (mobile)
+  setupSwipeNavigation();
 }
 
 // Arrancar cuando el DOM este listo
