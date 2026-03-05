@@ -1125,9 +1125,120 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
 ::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
 
+/* ── HAMBURGER BUTTON ────────────────────────────────────── */
+.btn-hamburger {
+  display: none; /* visible solo en mobile via media query */
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.btn-hamburger:hover { background: var(--bg); }
+.btn-hamburger:focus-visible { outline: 2px solid var(--indigo-600); outline-offset: 2px; }
+
+.hamburger-bar {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--text-secondary);
+  border-radius: 2px;
+  transition: transform 200ms ease, opacity 150ms ease;
+}
+
+.btn-hamburger[aria-expanded="true"] .hamburger-bar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.btn-hamburger[aria-expanded="true"] .hamburger-bar:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+.btn-hamburger[aria-expanded="true"] .hamburger-bar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* ── HEADER DROPDOWN MENU (mobile) ───────────────────────── */
+.header-menu {
+  position: fixed;
+  top: var(--header-h);
+  right: 12px;
+  z-index: 60;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  min-width: 220px;
+  animation: menuDrop 150ms ease;
+}
+
+.header-menu[hidden] { display: none; }
+
+@keyframes menuDrop {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.header-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition), color var(--transition);
+}
+
+.header-menu-item:hover { background: var(--bg); }
+.header-menu-item:focus-visible { outline: 2px solid var(--indigo-600); outline-offset: -2px; }
+
+.header-menu-item svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.header-menu-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 4px 0;
+}
+
 /* ── RESPONSIVE ──────────────────────────────────────────── */
 
 /* ── BASE (mobile-first: 375px) ─────────────────────────── */
+
+/* Max-width centrado en desktop */
+body {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* Header compacto */
+.app-header {
+  padding: 0 12px;
+  height: auto;
+  min-height: 56px;
+  flex-wrap: nowrap;
+}
 
 /* Layout principal: 1 columna en mobile */
 .app-main {
@@ -1137,87 +1248,64 @@ body {
   min-height: unset;
 }
 
-/* Header compacto */
-.app-header {
-  padding: 0 12px;
-  height: auto;
-  min-height: 56px;
-  flex-wrap: wrap;
-}
-
 .app-subtitle { display: none; }
 
-/* Ocultar texto de botones, solo icono en mobile */
-#btn-import .btn-label,
-#btn-export .btn-label,
-#btn-new-evento .btn-label,
-#btn-new-materia .btn-label { display: none; }
+/* Ocultar acciones desktop, mostrar hamburguesa */
+.header-actions { display: none; }
+.btn-hamburger  { display: flex; }
 
-#btn-import,
-#btn-export {
-  padding: 10px;
-  min-width: 44px;
-  min-height: 44px;
-  justify-content: center;
-}
-
-#btn-new-evento,
-#btn-new-materia {
-  padding: 10px 12px;
-  min-height: 44px;
-  font-size: 12px;
-}
-
-#btn-new-evento svg,
-#btn-new-materia svg,
-#btn-import svg,
-#btn-export svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
-/* Grilla: scroll horizontal SOLO dentro del wrapper del calendario */
+/* Grilla: scroll horizontal en mobile con 2 días visibles + sticky hours */
 .grid-wrapper {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 
+/* 2 días visibles: cada columna de día = (100vw - 56px_hours - 24px_padding) / 2 */
 .schedule-grid,
 .grid-day-header,
 .grid-layout {
-  min-width: 480px;
+  /* 5 días siempre presentes; ancho mínimo que los hace casi del mismo tamaño */
+  min-width: calc(56px + 5 * ((100vw - 56px - 24px) / 2));
+}
+
+.grid-day-header {
+  grid-template-columns: 56px repeat(5, calc((100vw - 56px - 24px) / 2));
+}
+
+.grid-layout {
+  grid-template-columns: 56px repeat(5, calc((100vw - 56px - 24px) / 2));
+}
+
+/* Columna de horas sticky mientras se hace scroll horizontal */
+.grid-time-column {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+/* Primera celda de la cabecera también sticky */
+.grid-day-header-cell:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: #EDF0F8;
 }
 
 /* Week nav compacto */
-.week-nav {
-  padding: 8px 12px;
-}
-
-.week-label {
-  font-size: 12px;
-}
+.week-nav { padding: 8px 12px; }
+.week-label { font-size: 12px; }
 
 /* Week buttons touch target */
-.week-btn {
-  width: 44px;
-  height: 44px;
-}
+.week-btn { width: 44px; height: 44px; }
 
 /* Modal close touch target en mobile */
-.modal-close {
-  width: 44px;
-  height: 44px;
-}
+.modal-close { width: 44px; height: 44px; }
 
 /* Modal padding reducido en mobile */
-.modal-overlay {
-  padding: 12px;
-}
-
-.modal-header { padding: 16px 16px 12px; }
-.modal-body   { padding: 16px; }
-.modal-footer { padding: 12px 16px 16px; }
+.modal-overlay { padding: 12px; }
+.modal-header  { padding: 16px 16px 12px; }
+.modal-body    { padding: 16px; }
+.modal-footer  { padding: 12px 16px 16px; }
 
 /* Sidebar: sin sticky, sin max-height fija en mobile */
 .sidebar {
@@ -1242,39 +1330,42 @@ body {
     height: var(--header-h);
     padding: 0 20px;
     min-height: var(--header-h);
-    flex-wrap: nowrap;
   }
 
   .app-subtitle { display: block; }
 
-  #btn-import,
-  #btn-export {
-    padding: 8px 14px;
-    min-width: unset;
-    min-height: unset;
-  }
+  /* Restaurar acciones desktop, ocultar hamburguesa */
+  .header-actions { display: flex; }
+  .btn-hamburger  { display: none; }
+  .header-menu    { display: none !important; } /* por si quedó abierto */
 
-  #btn-import .btn-label,
-  #btn-export .btn-label,
-  #btn-new-evento .btn-label,
-  #btn-new-materia .btn-label { display: inline; }
-
-  #btn-new-evento,
-  #btn-new-materia {
-    font-size: 13px;
-  }
-
+  /* Restaurar grid normal (todos los días iguales) */
   .schedule-grid,
   .grid-day-header,
   .grid-layout {
     min-width: unset;
   }
 
-  .grid-wrapper {
-    overflow-x: visible;
+  .grid-day-header {
+    grid-template-columns: 56px repeat(5, 1fr);
   }
 
-  .week-nav { padding: 10px 16px; }
+  .grid-layout {
+    grid-template-columns: 56px repeat(5, 1fr);
+  }
+
+  /* Quitar sticky de la columna de horas (no hace falta en tablet+) */
+  .grid-time-column {
+    position: relative;
+  }
+
+  .grid-day-header-cell:first-child {
+    position: static;
+  }
+
+  .grid-wrapper { overflow-x: visible; }
+
+  .week-nav   { padding: 10px 16px; }
   .week-label { font-size: 14px; }
 
   .app-main {
@@ -1285,11 +1376,11 @@ body {
   .materias-list { max-height: 280px; }
   .eventos-list  { max-height: 320px; }
 
-  .modal-close  { width: 32px; height: 32px; }
+  .modal-close   { width: 32px; height: 32px; }
   .modal-overlay { padding: 20px; }
-  .modal-header { padding: 20px 24px 16px; }
-  .modal-body   { padding: 20px 24px; }
-  .modal-footer { padding: 16px 24px 20px; }
+  .modal-header  { padding: 20px 24px 16px; }
+  .modal-body    { padding: 20px 24px; }
+  .modal-footer  { padding: 16px 24px 20px; }
 
   .week-btn { width: 34px; height: 34px; }
 }
@@ -1333,6 +1424,84 @@ body {
     justify-self: end;
   }
   .form-row { grid-template-columns: 1fr; }
+}
+
+/* ── PRINT / PDF ─────────────────────────────────────────── */
+@media print {
+  /* Ocultar todo excepto la grilla */
+  .app-header,
+  .sidebar,
+  .modal-overlay,
+  .toast-container,
+  .gist-sync-indicator,
+  #import-file-input,
+  .header-menu,
+  .week-nav {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+  }
+
+  .app-main {
+    display: block;
+    padding: 0;
+    min-height: auto;
+  }
+
+  .calendar-section {
+    display: block;
+  }
+
+  /* Grilla ocupa toda la página */
+  .grid-wrapper {
+    overflow: visible;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  .schedule-grid,
+  .grid-day-header,
+  .grid-layout {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .grid-day-header {
+    grid-template-columns: 48px repeat(5, 1fr);
+  }
+
+  .grid-layout {
+    grid-template-columns: 48px repeat(5, 1fr);
+  }
+
+  .grid-time-column {
+    position: relative;
+  }
+
+  .grid-day-header-cell:first-child {
+    position: static;
+  }
+
+  /* Forzar colores de fondo en impresión */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* No cortar bloques entre páginas */
+  .schedule-block { break-inside: avoid; }
+
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
 }
 
 /* ── GIST SETUP MODAL ────────────────────────────────────── */

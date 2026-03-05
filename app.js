@@ -1042,6 +1042,73 @@ function showGistSyncBtn() {
   if (btn) btn.hidden = false;
 }
 
+// ── EXPORT PNG ────────────────────────────────────────────
+async function exportPNG() {
+  const target = document.getElementById('calendar-section');
+  if (!target) { showToast('No se encontro la grilla', 'error'); return; }
+
+  showToast('Generando imagen…', 'info');
+
+  // Lazy-load dom-to-image-more from CDN
+  if (!window.domtoimage) {
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js';
+      script.onload  = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  try {
+    const scale = window.devicePixelRatio || 2;
+    const dataUrl = await window.domtoimage.toPng(target, {
+      width:  target.offsetWidth  * scale,
+      height: target.offsetHeight * scale,
+      style: {
+        transform: `scale(${scale})`,
+        transformOrigin: 'top left',
+      },
+    });
+    const a = document.createElement('a');
+    a.href     = dataUrl;
+    a.download = 'calendario.png';
+    a.click();
+    showToast('Imagen guardada como calendario.png', 'success');
+  } catch (e) {
+    console.error('exportPNG error:', e);
+    showToast('No se pudo generar la imagen', 'error');
+  }
+}
+
+// ── PRINT / PDF ───────────────────────────────────────────
+function printGrid() {
+  window.print();
+}
+
+// ── HAMBURGER MENU ────────────────────────────────────────
+function toggleHamburgerMenu() {
+  const btn  = document.getElementById('btn-hamburger');
+  const menu = document.getElementById('header-menu');
+  const isOpen = btn.getAttribute('aria-expanded') === 'true';
+
+  if (isOpen) {
+    closeHamburgerMenu();
+  } else {
+    btn.setAttribute('aria-expanded', 'true');
+    menu.removeAttribute('hidden');
+    // Focus primer item
+    menu.querySelector('.header-menu-item')?.focus();
+  }
+}
+
+function closeHamburgerMenu() {
+  const btn  = document.getElementById('btn-hamburger');
+  const menu = document.getElementById('header-menu');
+  btn.setAttribute('aria-expanded', 'false');
+  menu.setAttribute('hidden', '');
+}
+
 // ── INIT: EVENT LISTENERS ─────────────────────────────────
 async function init() {
   await loadState();
@@ -1063,10 +1130,12 @@ async function init() {
     if (e.target.id === 'modal-gist-setup') closeModal('modal-gist-setup');
   });
 
-  // Header actions
+  // Header actions (desktop)
   document.getElementById('btn-new-materia').addEventListener('click', openNewMateria);
   document.getElementById('btn-new-evento').addEventListener('click', openNewEvento);
   document.getElementById('btn-export').addEventListener('click', exportData);
+  document.getElementById('btn-export-png').addEventListener('click', exportPNG);
+  document.getElementById('btn-print').addEventListener('click', printGrid);
   document.getElementById('btn-import').addEventListener('click', () => {
     document.getElementById('import-file-input').click();
   });
@@ -1074,6 +1143,32 @@ async function init() {
     if (e.target.files[0]) {
       importData(e.target.files[0]);
       e.target.value = '';
+    }
+  });
+
+  // Hamburger toggle
+  document.getElementById('btn-hamburger').addEventListener('click', toggleHamburgerMenu);
+
+  // Menu items (mobile dropdown)
+  document.getElementById('header-menu').addEventListener('click', e => {
+    const item = e.target.closest('[data-menu-action]');
+    if (!item) return;
+    closeHamburgerMenu();
+    const action = item.dataset.menuAction;
+    if      (action === 'new-materia') openNewMateria();
+    else if (action === 'new-evento')  openNewEvento();
+    else if (action === 'export-png')  exportPNG();
+    else if (action === 'print')       printGrid();
+    else if (action === 'import')      document.getElementById('import-file-input').click();
+    else if (action === 'export')      exportData();
+  });
+
+  // Close hamburger menu on outside click
+  document.addEventListener('click', e => {
+    const menu = document.getElementById('header-menu');
+    const btn  = document.getElementById('btn-hamburger');
+    if (!menu.hidden && !menu.contains(e.target) && !btn.contains(e.target)) {
+      closeHamburgerMenu();
     }
   });
 
@@ -1114,9 +1209,12 @@ async function init() {
     });
   });
 
-  // Escape key
+  // Escape key closes modals and hamburger menu
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeAllModals();
+    if (e.key === 'Escape') {
+      closeAllModals();
+      closeHamburgerMenu();
+    }
   });
 
   // Eventos filter
