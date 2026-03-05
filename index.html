@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calendario Facultad</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="app-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+      </div>
+      <div>
+        <h1 class="app-title">Calendario</h1>
+        <p class="app-subtitle">Agenda Universitaria</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" id="btn-import" aria-label="Importar datos desde JSON">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        Importar
+      </button>
+      <button class="btn btn-secondary" id="btn-export" aria-label="Exportar datos como JSON">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Exportar
+      </button>
+      <button class="btn btn-outline" id="btn-new-evento" aria-label="Agregar nueva fecha importante">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="16"></line>
+          <line x1="8" y1="12" x2="16" y2="12"></line>
+        </svg>
+        Nuevo evento
+      </button>
+      <button class="btn btn-primary" id="btn-new-materia" aria-label="Agregar nueva materia">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 20h9"></path>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+        </svg>
+        Nueva materia
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== MAIN LAYOUT ===== -->
+  <main class="app-main">
+
+    <!-- COLUMNA IZQUIERDA: GRILLA + NAV SEMANA -->
+    <section class="calendar-section" aria-label="Grilla semanal">
+
+      <!-- Navegacion semanal -->
+      <div class="week-nav">
+        <button class="week-btn" id="btn-prev-week" aria-label="Semana anterior">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        <div class="week-info">
+          <span class="week-label" id="week-label">Semana actual</span>
+          <button class="btn-today" id="btn-today">Hoy</button>
+        </div>
+        <button class="week-btn" id="btn-next-week" aria-label="Semana siguiente">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Grilla semanal -->
+      <div class="grid-wrapper">
+        <div class="schedule-grid" id="schedule-grid" role="grid" aria-label="Horario semanal">
+          <!-- Generado por JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- COLUMNA DERECHA: PANEL DE EVENTOS + MATERIAS -->
+    <aside class="sidebar" aria-label="Panel lateral">
+
+      <!-- Panel de materias -->
+      <div class="sidebar-card">
+        <div class="sidebar-card-header">
+          <h2 class="sidebar-card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            </svg>
+            Materias
+          </h2>
+          <span class="badge" id="materias-count">0</span>
+        </div>
+        <div class="materias-list" id="materias-list">
+          <!-- Generado por JS -->
+        </div>
+      </div>
+
+      <!-- Panel de fechas importantes -->
+      <div class="sidebar-card">
+        <div class="sidebar-card-header">
+          <h2 class="sidebar-card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+            Fechas importantes
+          </h2>
+          <span class="badge" id="eventos-count">0</span>
+        </div>
+        <div class="eventos-filter">
+          <button class="filter-btn active" data-filter="all">Todos</button>
+          <button class="filter-btn" data-filter="parcial">Parcial</button>
+          <button class="filter-btn" data-filter="final">Final</button>
+          <button class="filter-btn" data-filter="entrega">Entrega</button>
+          <button class="filter-btn" data-filter="otro">Otro</button>
+        </div>
+        <div class="eventos-list" id="eventos-list">
+          <!-- Generado por JS -->
+        </div>
+      </div>
+
+    </aside>
+  </main>
+
+  <!-- ===== MODAL: MATERIA ===== -->
+  <div class="modal-overlay" id="modal-materia" role="dialog" aria-modal="true" aria-labelledby="modal-materia-title" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-materia-title">Nueva materia</h2>
+        <button class="modal-close" aria-label="Cerrar modal" data-close="modal-materia">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="materia-id" />
+
+        <div class="form-group">
+          <label for="materia-nombre" class="form-label">Nombre de la materia</label>
+          <input type="text" id="materia-nombre" class="form-input" placeholder="Ej: Matematica II" autocomplete="off" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Color</label>
+          <div class="color-picker" id="color-picker" role="radiogroup" aria-label="Seleccionar color de la materia">
+            <!-- Generado por JS -->
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Horarios</label>
+          <div class="horarios-list" id="horarios-list">
+            <!-- Generado por JS -->
+          </div>
+          <button type="button" class="btn btn-ghost btn-add-horario" id="btn-add-horario">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Agregar horario
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" data-close="modal-materia">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-save-materia">Guardar materia</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: EVENTO ===== -->
+  <div class="modal-overlay" id="modal-evento" role="dialog" aria-modal="true" aria-labelledby="modal-evento-title" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-evento-title">Nuevo evento</h2>
+        <button class="modal-close" aria-label="Cerrar modal" data-close="modal-evento">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="evento-id" />
+
+        <div class="form-group">
+          <label for="evento-titulo" class="form-label">Titulo del evento</label>
+          <input type="text" id="evento-titulo" class="form-input" placeholder="Ej: Parcial Matematica II" autocomplete="off" required />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="evento-fecha" class="form-label">Fecha</label>
+            <input type="date" id="evento-fecha" class="form-input" required />
+          </div>
+          <div class="form-group">
+            <label for="evento-tipo" class="form-label">Tipo</label>
+            <select id="evento-tipo" class="form-input form-select">
+              <option value="parcial">Parcial</option>
+              <option value="final">Final</option>
+              <option value="entrega">Entrega</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="evento-materia" class="form-label">Materia asociada <span class="form-label-optional">(opcional)</span></label>
+          <select id="evento-materia" class="form-input form-select">
+            <option value="">— Sin materia —</option>
+            <!-- Generado por JS -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="evento-notas" class="form-label">Notas <span class="form-label-optional">(opcional)</span></label>
+          <textarea id="evento-notas" class="form-input form-textarea" placeholder="Ej: Temas del parcial, lugar, etc." rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" data-close="modal-evento">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-save-evento">Guardar evento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: CONFIRMAR ELIMINACION ===== -->
+  <div class="modal-overlay" id="modal-confirm" role="dialog" aria-modal="true" aria-labelledby="modal-confirm-title" hidden>
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-confirm-title">Confirmar eliminacion</h2>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-text" id="confirm-text">¿Estas seguro de que queres eliminar esto?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" data-close="modal-confirm">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="btn-confirm-delete">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input oculto para importar JSON -->
+  <input type="file" id="import-file-input" accept=".json" style="display:none" aria-hidden="true" />
+
+  <!-- Toast de notificaciones -->
+  <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
