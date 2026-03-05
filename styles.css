@@ -1335,6 +1335,88 @@ body {
   .form-row { grid-template-columns: 1fr; }
 }
 
+/* ── GIST SETUP MODAL ────────────────────────────────────── */
+.gist-setup-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.gist-token-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+.gist-setup-error {
+  font-size: 13px;
+  color: var(--danger);
+  background: var(--danger-bg);
+  border: 1px solid #FECACA;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+
+/* Indicador flotante de sync */
+.gist-sync-indicator {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 150;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: background var(--transition), color var(--transition),
+              border-color var(--transition), box-shadow var(--transition);
+}
+
+.gist-sync-indicator[hidden] { display: none; }
+
+.gist-sync-indicator:hover {
+  background: var(--bg);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.gist-sync-indicator .sync-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.gist-sync-indicator.syncing {
+  color: var(--indigo-600);
+  border-color: var(--indigo-500);
+}
+
+.gist-sync-indicator.syncing .sync-icon {
+  animation: spin 1s linear infinite;
+}
+
+.gist-sync-indicator.sync-ok {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.gist-sync-indicator.sync-error {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 /* ── ACCESIBILIDAD ───────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

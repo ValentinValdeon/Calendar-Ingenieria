@@ -261,6 +261,48 @@
     </div>
   </div>
 
+  <!-- ===== MODAL: SETUP GIST ===== -->
+  <div class="modal-overlay" id="modal-gist-setup" role="dialog" aria-modal="true" aria-labelledby="modal-gist-title" hidden>
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-gist-title">Conectar sincronizacion</h2>
+      </div>
+      <div class="modal-body">
+        <p class="gist-setup-desc">Ingresa tu GitHub Gist ID y un Personal Access Token para sincronizar tus datos entre dispositivos.</p>
+
+        <div class="form-group">
+          <label for="gist-id-input" class="form-label">Gist ID</label>
+          <input type="text" id="gist-id-input" class="form-input" placeholder="ej: 0c48580271087c80f36859f2faf71a43" autocomplete="off" spellcheck="false" />
+        </div>
+
+        <div class="form-group">
+          <label for="gist-token-input" class="form-label">Personal Access Token <span class="form-label-optional">(permiso: gist)</span></label>
+          <input type="password" id="gist-token-input" class="form-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false" />
+          <p class="gist-token-hint">El token se guarda solo en este dispositivo (localStorage). Nunca sale del navegador.</p>
+        </div>
+
+        <div id="gist-setup-error" class="gist-setup-error" hidden></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="btn-gist-skip">Usar sin sync</button>
+        <button type="button" class="btn btn-primary" id="btn-gist-connect">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:15px;height:15px;">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+          </svg>
+          Conectar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Boton flotante de estado de sync (visible cuando esta conectado) -->
+  <button class="gist-sync-indicator" id="gist-sync-btn" aria-label="Estado de sincronizacion con Gist" hidden>
+    <svg class="sync-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/>
+      <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+    </svg>
+  </button>
+
   <!-- Input oculto para importar JSON -->
   <input type="file" id="import-file-input" accept=".json" style="display:none" aria-hidden="true" />
 

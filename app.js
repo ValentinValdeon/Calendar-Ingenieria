@@ -116,32 +116,122 @@ function overlaps(a, b) {
 
 // ── STORAGE ───────────────────────────────────────────────
 const STORAGE_VERSION_KEY = 'calendario_facultad_version';
+const GIST_ID_KEY         = 'calendario_gist_id';
+const GIST_TOKEN_KEY      = 'calendario_gist_token';
+const GIST_FILENAME       = 'data.json';
+
+// ── GIST API ──────────────────────────────────────────────
+
+function getGistConfig() {
+  return {
+    id:    localStorage.getItem(GIST_ID_KEY)    || '',
+    token: localStorage.getItem(GIST_TOKEN_KEY) || '',
+  };
+}
+
+function isGistConfigured() {
+  const { id, token } = getGistConfig();
+  return !!(id && token);
+}
+
+function setSyncIndicator(status) {
+  // status: 'syncing' | 'ok' | 'error' | 'idle'
+  const btn = document.getElementById('gist-sync-btn');
+  if (!btn) return;
+  btn.classList.remove('syncing', 'sync-ok', 'sync-error');
+  if (status === 'syncing') btn.classList.add('syncing');
+  if (status === 'ok')      btn.classList.add('sync-ok');
+  if (status === 'error')   btn.classList.add('sync-error');
+}
+
+async function loadFromGist() {
+  const { id, token } = getGistConfig();
+  const res = await fetch(`https://api.github.com/gists/${id}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+  if (!res.ok) throw new Error(`Gist API error: ${res.status}`);
+  const data = await res.json();
+  const content = data.files?.[GIST_FILENAME]?.content;
+  if (!content) throw new Error('Archivo data.json no encontrado en el Gist');
+  return JSON.parse(content);
+}
+
+async function saveToGist() {
+  const { id, token } = getGistConfig();
+  if (!id || !token) return; // sin config, no hacer nada
+
+  setSyncIndicator('syncing');
+  const today   = new Date().toISOString().slice(0, 10);
+  const payload = { version: today, materias: state.materias, eventos: state.eventos };
+
+  try {
+    const res = await fetch(`https://api.github.com/gists/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        files: {
+          [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) },
+        },
+      }),
+    });
+    if (!res.ok) throw new Error(`Gist PATCH error: ${res.status}`);
+    localStorage.setItem(STORAGE_VERSION_KEY, today);
+    setSyncIndicator('ok');
+    setTimeout(() => setSyncIndicator('idle'), 2500);
+  } catch (e) {
+    setSyncIndicator('error');
+    setTimeout(() => setSyncIndicator('idle'), 3000);
+    console.warn('saveToGist failed:', e);
+  }
+}
 
 async function loadState() {
-  try {
-    // Siempre intentar cargar data.json para comparar versiones
-    const res = await fetch('data.json');
-    if (!res.ok) throw new Error('fetch failed');
-    const remote = await res.json();
-    const remoteVersion  = remote.version  || '0000-00-00';
-    const localVersion   = localStorage.getItem(STORAGE_VERSION_KEY) || '0000-00-00';
-
-    if (remoteVersion > localVersion) {
-      // El repo tiene datos más nuevos → sincronizar
+  if (isGistConfigured()) {
+    // ── CON GIST: siempre leer desde Gist como fuente de verdad ──
+    try {
+      setSyncIndicator('syncing');
+      const remote = await loadFromGist();
       state = { materias: remote.materias || [], eventos: remote.eventos || [] };
-      saveState(remoteVersion);
-    } else {
-      // localStorage está actualizado o es más reciente (cambios locales)
+      // Guardar copia local como caché
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(STORAGE_VERSION_KEY, remote.version || '0000-00-00');
+      setSyncIndicator('ok');
+      setTimeout(() => setSyncIndicator('idle'), 2500);
+    } catch (e) {
+      // Sin red o error → usar caché local
+      setSyncIndicator('error');
+      setTimeout(() => setSyncIndicator('idle'), 3000);
       const raw = localStorage.getItem(STORAGE_KEY);
-      state = raw ? JSON.parse(raw) : { materias: remote.materias || [], eventos: remote.eventos || [] };
+      state = raw ? JSON.parse(raw) : { materias: [], eventos: [] };
+      console.warn('loadFromGist failed, using local cache:', e);
     }
-  } catch (e) {
-    // Sin red o error de fetch: usar localStorage si existe
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      state = JSON.parse(raw);
-    } else {
-      state = { materias: [], eventos: [] };
+  } else {
+    // ── SIN GIST: lógica anterior con data.json ──
+    try {
+      const res = await fetch('data.json');
+      if (!res.ok) throw new Error('fetch failed');
+      const remote = await res.json();
+      const remoteVersion = remote.version  || '0000-00-00';
+      const localVersion  = localStorage.getItem(STORAGE_VERSION_KEY) || '0000-00-00';
+      if (remoteVersion > localVersion) {
+        state = { materias: remote.materias || [], eventos: remote.eventos || [] };
+        saveState(remoteVersion);
+      } else {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        state = raw ? JSON.parse(raw) : { materias: remote.materias || [], eventos: remote.eventos || [] };
+      }
+    } catch (e) {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      state = raw ? JSON.parse(raw) : { materias: [], eventos: [] };
     }
   }
 }
@@ -149,6 +239,8 @@ async function loadState() {
 function saveState(version) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   if (version) localStorage.setItem(STORAGE_VERSION_KEY, version);
+  // Sincronizar al Gist en background (no bloqueante)
+  saveToGist();
 }
 
 // ── GRILLA SEMANAL ────────────────────────────────────────
@@ -553,7 +645,7 @@ function closeModal(id) {
 }
 
 function closeAllModals() {
-  ['modal-materia', 'modal-evento', 'modal-confirm'].forEach(closeModal);
+  ['modal-materia', 'modal-evento', 'modal-confirm', 'modal-gist-setup'].forEach(closeModal);
 }
 
 // ── COLOR PICKER ──────────────────────────────────────────
@@ -871,9 +963,105 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+// ── GIST SETUP MODAL ──────────────────────────────────────
+
+function openGistSetup() {
+  const { id, token } = getGistConfig();
+  document.getElementById('gist-id-input').value    = id;
+  document.getElementById('gist-token-input').value = token;
+  const errEl = document.getElementById('gist-setup-error');
+  errEl.textContent = '';
+  errEl.hidden = true;
+  openModal('modal-gist-setup');
+  document.getElementById('gist-id-input').focus();
+}
+
+async function connectGist() {
+  const id    = document.getElementById('gist-id-input').value.trim();
+  const token = document.getElementById('gist-token-input').value.trim();
+  const errEl = document.getElementById('gist-setup-error');
+  const btn   = document.getElementById('btn-gist-connect');
+
+  errEl.hidden = true;
+
+  if (!id || !token) {
+    errEl.textContent = 'Ingresa el Gist ID y el token.';
+    errEl.hidden = false;
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Conectando...';
+
+  try {
+    // Validar que el Gist existe y el token funciona
+    const res = await fetch(`https://api.github.com/gists/${id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+
+    if (res.status === 401) throw new Error('Token invalido o sin permisos. Verificá que tenga el scope "gist".');
+    if (res.status === 404) throw new Error('Gist no encontrado. Verificá el ID.');
+    if (!res.ok) throw new Error(`Error de API: ${res.status}`);
+
+    const data = await res.json();
+    if (!data.files?.[GIST_FILENAME]) {
+      throw new Error(`El Gist no contiene un archivo llamado "${GIST_FILENAME}". Crealo con ese nombre exacto.`);
+    }
+
+    // Guardar config
+    localStorage.setItem(GIST_ID_KEY,    id);
+    localStorage.setItem(GIST_TOKEN_KEY, token);
+
+    closeModal('modal-gist-setup');
+    showGistSyncBtn();
+
+    // Cargar datos del Gist
+    const content = data.files[GIST_FILENAME].content;
+    const remote  = JSON.parse(content);
+    state = { materias: remote.materias || [], eventos: remote.eventos || [] };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_VERSION_KEY, remote.version || '0000-00-00');
+    renderAll();
+    showToast('Sincronizacion configurada correctamente', 'success');
+
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:15px;height:15px;"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Conectar`;
+  }
+}
+
+function showGistSyncBtn() {
+  const btn = document.getElementById('gist-sync-btn');
+  if (btn) btn.hidden = false;
+}
+
 // ── INIT: EVENT LISTENERS ─────────────────────────────────
 async function init() {
   await loadState();
+
+  // Mostrar botón de sync si ya está configurado, si no → abrir setup
+  if (isGistConfigured()) {
+    showGistSyncBtn();
+  } else {
+    openGistSetup();
+  }
+
+  // Gist sync button: click abre el modal de reconfigurar
+  document.getElementById('gist-sync-btn').addEventListener('click', openGistSetup);
+
+  // Gist setup modal buttons
+  document.getElementById('btn-gist-connect').addEventListener('click', connectGist);
+  document.getElementById('btn-gist-skip').addEventListener('click', () => closeModal('modal-gist-setup'));
+  document.getElementById('modal-gist-setup').addEventListener('click', e => {
+    if (e.target.id === 'modal-gist-setup') closeModal('modal-gist-setup');
+  });
 
   // Header actions
   document.getElementById('btn-new-materia').addEventListener('click', openNewMateria);
