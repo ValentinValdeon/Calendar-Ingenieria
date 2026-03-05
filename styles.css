@@ -1224,165 +1224,100 @@ body {
 
 /* ── RESPONSIVE ──────────────────────────────────────────── */
 
-/* ── BASE (mobile-first: 375px) ─────────────────────────── */
+/* ── MOBILE (max 639px) ──────────────────────────────────── */
+@media (max-width: 639px) {
 
-/* Max-width centrado en desktop */
-body {
-  max-width: 1280px;
-  margin: 0 auto;
-}
-
-/* Header compacto */
-.app-header {
-  padding: 0 12px;
-  height: auto;
-  min-height: 56px;
-  flex-wrap: nowrap;
-}
-
-/* Layout principal: 1 columna en mobile */
-.app-main {
-  grid-template-columns: 1fr;
-  padding: 12px;
-  gap: 12px;
-  min-height: unset;
-}
-
-.app-subtitle { display: none; }
-
-/* Ocultar acciones desktop, mostrar hamburguesa */
-.header-actions { display: none; }
-.btn-hamburger  { display: flex; }
-
-/* Grilla: scroll horizontal en mobile con 2 días visibles + sticky hours */
-.grid-wrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* 2 días visibles: cada columna de día = (100vw - 56px_hours - 24px_padding) / 2 */
-.schedule-grid,
-.grid-day-header,
-.grid-layout {
-  /* 5 días siempre presentes; ancho mínimo que los hace casi del mismo tamaño */
-  min-width: calc(56px + 5 * ((100vw - 56px - 24px) / 2));
-}
-
-.grid-day-header {
-  grid-template-columns: 56px repeat(5, calc((100vw - 56px - 24px) / 2));
-}
-
-.grid-layout {
-  grid-template-columns: 56px repeat(5, calc((100vw - 56px - 24px) / 2));
-}
-
-/* Columna de horas sticky mientras se hace scroll horizontal */
-.grid-time-column {
-  position: sticky;
-  left: 0;
-  z-index: 2;
-}
-
-/* Primera celda de la cabecera también sticky */
-.grid-day-header-cell:first-child {
-  position: sticky;
-  left: 0;
-  z-index: 3;
-  background: #EDF0F8;
-}
-
-/* Week nav compacto */
-.week-nav { padding: 8px 12px; }
-.week-label { font-size: 12px; }
-
-/* Week buttons touch target */
-.week-btn { width: 44px; height: 44px; }
-
-/* Modal close touch target en mobile */
-.modal-close { width: 44px; height: 44px; }
-
-/* Modal padding reducido en mobile */
-.modal-overlay { padding: 12px; }
-.modal-header  { padding: 16px 16px 12px; }
-.modal-body    { padding: 16px; }
-.modal-footer  { padding: 12px 16px 16px; }
-
-/* Sidebar: sin sticky, sin max-height fija en mobile */
-.sidebar {
-  position: static;
-  max-height: none;
-  overflow-y: visible;
-}
-
-/* Listas del sidebar: sin max-height en mobile */
-.materias-list { max-height: none; }
-.eventos-list  { max-height: none; }
-
-/* Touch targets para botones de acción en listas */
-.btn-icon {
-  min-width: 36px;
-  min-height: 36px;
-}
-
-/* ── TABLET (640px+) ─────────────────────────────────────── */
-@media (min-width: 640px) {
+  /* Header compacto */
   .app-header {
-    height: var(--header-h);
-    padding: 0 20px;
-    min-height: var(--header-h);
+    padding: 0 12px;
+    height: auto;
+    min-height: 56px;
+    flex-wrap: nowrap;
   }
 
-  .app-subtitle { display: block; }
+  .app-subtitle { display: none; }
 
-  /* Restaurar acciones desktop, ocultar hamburguesa */
-  .header-actions { display: flex; }
-  .btn-hamburger  { display: none; }
-  .header-menu    { display: none !important; } /* por si quedó abierto */
+  /* Ocultar acciones desktop, mostrar hamburguesa */
+  .header-actions { display: none; }
+  .btn-hamburger  { display: flex; }
 
-  /* Restaurar grid normal (todos los días iguales) */
+  /* Layout principal: 1 columna */
+  .app-main {
+    grid-template-columns: 1fr;
+    padding: 12px;
+    gap: 12px;
+    min-height: unset;
+  }
+
+  /* Grilla: scroll horizontal con 2 días visibles + columna de horas sticky */
+  .grid-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Cada columna de día ocupa la mitad del ancho disponible → 2 días visibles */
   .schedule-grid,
   .grid-day-header,
   .grid-layout {
-    min-width: unset;
+    min-width: calc(56px + 5 * ((100vw - 56px - 24px) / 2));
   }
 
   .grid-day-header {
-    grid-template-columns: 56px repeat(5, 1fr);
+    grid-template-columns: 56px repeat(5, calc((100vw - 56px - 24px) / 2));
   }
 
   .grid-layout {
-    grid-template-columns: 56px repeat(5, 1fr);
+    grid-template-columns: 56px repeat(5, calc((100vw - 56px - 24px) / 2));
   }
 
-  /* Quitar sticky de la columna de horas (no hace falta en tablet+) */
+  /* Columna de horas sticky al hacer scroll horizontal */
   .grid-time-column {
-    position: relative;
+    position: sticky;
+    left: 0;
+    z-index: 2;
   }
 
+  /* Primera celda del header de días también sticky */
   .grid-day-header-cell:first-child {
-    position: static;
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: #EDF0F8;
   }
 
-  .grid-wrapper { overflow-x: visible; }
+  /* Week nav compacto */
+  .week-nav   { padding: 8px 12px; }
+  .week-label { font-size: 12px; }
 
-  .week-nav   { padding: 10px 16px; }
-  .week-label { font-size: 14px; }
+  /* Week buttons: touch target mínimo */
+  .week-btn { width: 44px; height: 44px; }
 
-  .app-main {
-    padding: 16px;
-    gap: 16px;
+  /* Modal: touch target y padding reducido */
+  .modal-close   { width: 44px; height: 44px; }
+  .modal-overlay { padding: 12px; }
+  .modal-header  { padding: 16px 16px 12px; }
+  .modal-body    { padding: 16px; }
+  .modal-footer  { padding: 12px 16px 16px; }
+
+  /* Sidebar: sin sticky ni max-height */
+  .sidebar       { position: static; max-height: none; overflow-y: visible; }
+  .materias-list { max-height: none; }
+  .eventos-list  { max-height: none; }
+
+  /* Touch targets en listas */
+  .btn-icon { min-width: 36px; min-height: 36px; }
+
+  /* Horario row: 2 columnas en mobile */
+  .horario-row {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
   }
-
-  .materias-list { max-height: 280px; }
-  .eventos-list  { max-height: 320px; }
-
-  .modal-close   { width: 32px; height: 32px; }
-  .modal-overlay { padding: 20px; }
-  .modal-header  { padding: 20px 24px 16px; }
-  .modal-body    { padding: 20px 24px; }
-  .modal-footer  { padding: 16px 24px 20px; }
-
-  .week-btn { width: 34px; height: 34px; }
+  .horario-row .btn-remove-horario {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .form-row { grid-template-columns: 1fr; }
 }
 
 /* ── LAPTOP (1024px+) ────────────────────────────────────── */
@@ -1410,20 +1345,6 @@ body {
 /* ── DESKTOP (1280px+) ───────────────────────────────────── */
 @media (min-width: 1280px) {
   :root { --sidebar-w: 320px; }
-}
-
-/* Horario row en mobile: 2 columnas */
-@media (max-width: 639px) {
-  .horario-row {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
-  }
-  .horario-row .btn-remove-horario {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
-  }
-  .form-row { grid-template-columns: 1fr; }
 }
 
 /* ── PRINT / PDF ─────────────────────────────────────────── */
