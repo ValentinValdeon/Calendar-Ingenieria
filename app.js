@@ -115,28 +115,40 @@ function overlaps(a, b) {
 }
 
 // ── STORAGE ───────────────────────────────────────────────
+const STORAGE_VERSION_KEY = 'calendario_facultad_version';
+
 async function loadState() {
   try {
+    // Siempre intentar cargar data.json para comparar versiones
+    const res = await fetch('data.json');
+    if (!res.ok) throw new Error('fetch failed');
+    const remote = await res.json();
+    const remoteVersion  = remote.version  || '0000-00-00';
+    const localVersion   = localStorage.getItem(STORAGE_VERSION_KEY) || '0000-00-00';
+
+    if (remoteVersion > localVersion) {
+      // El repo tiene datos más nuevos → sincronizar
+      state = { materias: remote.materias || [], eventos: remote.eventos || [] };
+      saveState(remoteVersion);
+    } else {
+      // localStorage está actualizado o es más reciente (cambios locales)
+      const raw = localStorage.getItem(STORAGE_KEY);
+      state = raw ? JSON.parse(raw) : { materias: remote.materias || [], eventos: remote.eventos || [] };
+    }
+  } catch (e) {
+    // Sin red o error de fetch: usar localStorage si existe
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       state = JSON.parse(raw);
-      return;
+    } else {
+      state = { materias: [], eventos: [] };
     }
-    // Sin localStorage: cargar desde data.json
-    const res = await fetch('data.json');
-    if (!res.ok) throw new Error('No se pudo cargar data.json');
-    const data = await res.json();
-    state = { materias: data.materias || [], eventos: data.eventos || [] };
-    saveState();
-  } catch (e) {
-    // Fallback seguro: estado vacio
-    state = { materias: [], eventos: [] };
-    saveState();
   }
 }
 
-function saveState() {
+function saveState(version) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (version) localStorage.setItem(STORAGE_VERSION_KEY, version);
 }
 
 // ── GRILLA SEMANAL ────────────────────────────────────────
@@ -799,15 +811,19 @@ function openConfirm(text, onConfirm) {
 
 // ── EXPORT / IMPORT ───────────────────────────────────────
 function exportData() {
-  const json = JSON.stringify(state, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `calendario_facultad_${new Date().toISOString().slice(0, 10)}.json`;
+  const today   = new Date().toISOString().slice(0, 10);
+  const payload = { version: today, materias: state.materias, eventos: state.eventos };
+  const json    = JSON.stringify(payload, null, 2);
+  const blob    = new Blob([json], { type: 'application/json' });
+  const url     = URL.createObjectURL(blob);
+  const a       = document.createElement('a');
+  a.href        = url;
+  a.download    = 'data.json';
   a.click();
   URL.revokeObjectURL(url);
-  showToast('Datos exportados correctamente', 'success');
+  // Actualizar version local para que no se sobreescriba al recargar
+  localStorage.setItem(STORAGE_VERSION_KEY, today);
+  showToast('Exportado como data.json — reemplazá el archivo en el repo y hacé push', 'success');
 }
 
 function importData(file) {
@@ -816,8 +832,9 @@ function importData(file) {
     try {
       const imported = JSON.parse(e.target.result);
       if (!imported.materias || !imported.eventos) throw new Error('Formato invalido');
-      state = imported;
-      saveState();
+      const version = imported.version || new Date().toISOString().slice(0, 10);
+      state = { materias: imported.materias, eventos: imported.eventos };
+      saveState(version);
       renderAll();
       showToast('Datos importados correctamente', 'success');
     } catch {
