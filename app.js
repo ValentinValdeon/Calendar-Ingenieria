@@ -34,47 +34,7 @@ const COLOR_TEXT = {
   '#6366F1': '#fff',
 };
 
-// Datos precargados de las 4 materias
-const INITIAL_DATA = {
-  materias: [
-    {
-      id: 'mat-1',
-      nombre: 'Planeamiento Informatico',
-      color: '#4F46E5',
-      horarios: [
-        { dia: 'Miercoles', inicio: '18:00', fin: '21:00', lugar: 'Aula 51' }
-      ]
-    },
-    {
-      id: 'mat-2',
-      nombre: 'Metodos Formales',
-      color: '#0EA5E9',
-      horarios: [
-        { dia: 'Miercoles', inicio: '10:00', fin: '13:00', lugar: 'Sala 7' },
-        { dia: 'Jueves',    inicio: '11:00', fin: '13:00', lugar: 'Sala 7' }
-      ]
-    },
-    {
-      id: 'mat-3',
-      nombre: 'Sistemas de Tiempo Real',
-      color: '#10B981',
-      horarios: [
-        { dia: 'Martes',   inicio: '10:00', fin: '12:00', lugar: 'Sala 8' },
-        { dia: 'Viernes',  inicio: '15:00', fin: '18:00', lugar: 'Sala 8' }
-      ]
-    },
-    {
-      id: 'mat-4',
-      nombre: 'Ingenieria Web',
-      color: '#F59E0B',
-      horarios: [
-        { dia: 'Jueves',   inicio: '08:00', fin: '10:00', lugar: 'Sala a confirmar' },
-        { dia: 'Viernes',  inicio: '08:00', fin: '11:00', lugar: 'Sala 3' }
-      ]
-    }
-  ],
-  eventos: []
-};
+// Datos iniciales: se cargan desde data.json la primera vez (ver loadState)
 
 // ── ESTADO ────────────────────────────────────────────────
 let state = { materias: [], eventos: [] };
@@ -155,17 +115,22 @@ function overlaps(a, b) {
 }
 
 // ── STORAGE ───────────────────────────────────────────────
-function loadState() {
+async function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       state = JSON.parse(raw);
-    } else {
-      state = JSON.parse(JSON.stringify(INITIAL_DATA));
-      saveState();
+      return;
     }
+    // Sin localStorage: cargar desde data.json
+    const res = await fetch('data.json');
+    if (!res.ok) throw new Error('No se pudo cargar data.json');
+    const data = await res.json();
+    state = { materias: data.materias || [], eventos: data.eventos || [] };
+    saveState();
   } catch (e) {
-    state = JSON.parse(JSON.stringify(INITIAL_DATA));
+    // Fallback seguro: estado vacio
+    state = { materias: [], eventos: [] };
     saveState();
   }
 }
@@ -890,8 +855,8 @@ function escapeHtml(str) {
 }
 
 // ── INIT: EVENT LISTENERS ─────────────────────────────────
-function init() {
-  loadState();
+async function init() {
+  await loadState();
 
   // Header actions
   document.getElementById('btn-new-materia').addEventListener('click', openNewMateria);
@@ -965,7 +930,7 @@ function init() {
 
 // Arrancar cuando el DOM este listo
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => init());
 } else {
   init();
 }

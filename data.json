@@ -1,0 +1,40 @@
+{
+  "materias": [
+    {
+      "id": "mat-1",
+      "nombre": "Planeamiento Informatico",
+      "color": "#4F46E5",
+      "horarios": [
+        { "dia": "Miercoles", "inicio": "18:00", "fin": "21:00", "lugar": "Aula 51" }
+      ]
+    },
+    {
+      "id": "mat-2",
+      "nombre": "Metodos Formales",
+      "color": "#0EA5E9",
+      "horarios": [
+        { "dia": "Miercoles", "inicio": "10:00", "fin": "13:00", "lugar": "Sala 7" },
+        { "dia": "Jueves",    "inicio": "11:00", "fin": "13:00", "lugar": "Sala 7" }
+      ]
+    },
+    {
+      "id": "mat-3",
+      "nombre": "Sistemas de Tiempo Real",
+      "color": "#10B981",
+      "horarios": [
+        { "dia": "Martes",  "inicio": "10:00", "fin": "12:00", "lugar": "Sala 8" },
+        { "dia": "Viernes", "inicio": "15:00", "fin": "18:00", "lugar": "Sala 8" }
+      ]
+    },
+    {
+      "id": "mat-4",
+      "nombre": "Ingenieria Web",
+      "color": "#F59E0B",
+      "horarios": [
+        { "dia": "Jueves",  "inicio": "08:00", "fin": "10:00", "lugar": "Sala a confirmar" },
+        { "dia": "Viernes", "inicio": "08:00", "fin": "11:00", "lugar": "Sala 3" }
+      ]
+    }
+  ],
+  "eventos": []
+}
