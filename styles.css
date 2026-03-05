@@ -1126,48 +1126,212 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
 
 /* ── RESPONSIVE ──────────────────────────────────────────── */
-@media (max-width: 1100px) {
-  :root { --sidebar-w: 280px; }
+
+/* ── BASE (mobile-first: 375px) ─────────────────────────── */
+
+/* Layout principal: 1 columna en mobile */
+.app-main {
+  grid-template-columns: 1fr;
+  padding: 12px;
+  gap: 12px;
+  min-height: unset;
 }
 
-@media (max-width: 900px) {
+/* Header compacto */
+.app-header {
+  padding: 0 12px;
+  height: auto;
+  min-height: 56px;
+  flex-wrap: wrap;
+}
+
+.app-subtitle { display: none; }
+
+/* Ocultar texto de botones, solo icono en mobile */
+#btn-import .btn-label,
+#btn-export .btn-label,
+#btn-new-evento .btn-label,
+#btn-new-materia .btn-label { display: none; }
+
+#btn-import,
+#btn-export {
+  padding: 10px;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+
+#btn-new-evento,
+#btn-new-materia {
+  padding: 10px 12px;
+  min-height: 44px;
+  font-size: 12px;
+}
+
+#btn-new-evento svg,
+#btn-new-materia svg,
+#btn-import svg,
+#btn-export svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Grilla: scroll horizontal SOLO dentro del wrapper del calendario */
+.grid-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.schedule-grid,
+.grid-day-header,
+.grid-layout {
+  min-width: 480px;
+}
+
+/* Week nav compacto */
+.week-nav {
+  padding: 8px 12px;
+}
+
+.week-label {
+  font-size: 12px;
+}
+
+/* Week buttons touch target */
+.week-btn {
+  width: 44px;
+  height: 44px;
+}
+
+/* Modal close touch target en mobile */
+.modal-close {
+  width: 44px;
+  height: 44px;
+}
+
+/* Modal padding reducido en mobile */
+.modal-overlay {
+  padding: 12px;
+}
+
+.modal-header { padding: 16px 16px 12px; }
+.modal-body   { padding: 16px; }
+.modal-footer { padding: 12px 16px 16px; }
+
+/* Sidebar: sin sticky, sin max-height fija en mobile */
+.sidebar {
+  position: static;
+  max-height: none;
+  overflow-y: visible;
+}
+
+/* Listas del sidebar: sin max-height en mobile */
+.materias-list { max-height: none; }
+.eventos-list  { max-height: none; }
+
+/* Touch targets para botones de acción en listas */
+.btn-icon {
+  min-width: 36px;
+  min-height: 36px;
+}
+
+/* ── TABLET (640px+) ─────────────────────────────────────── */
+@media (min-width: 640px) {
+  .app-header {
+    height: var(--header-h);
+    padding: 0 20px;
+    min-height: var(--header-h);
+    flex-wrap: nowrap;
+  }
+
+  .app-subtitle { display: block; }
+
+  #btn-import,
+  #btn-export {
+    padding: 8px 14px;
+    min-width: unset;
+    min-height: unset;
+  }
+
+  #btn-import .btn-label,
+  #btn-export .btn-label,
+  #btn-new-evento .btn-label,
+  #btn-new-materia .btn-label { display: inline; }
+
+  #btn-new-evento,
+  #btn-new-materia {
+    font-size: 13px;
+  }
+
+  .schedule-grid,
+  .grid-day-header,
+  .grid-layout {
+    min-width: unset;
+  }
+
+  .grid-wrapper {
+    overflow-x: visible;
+  }
+
+  .week-nav { padding: 10px 16px; }
+  .week-label { font-size: 14px; }
+
   .app-main {
-    grid-template-columns: 1fr;
     padding: 16px;
+    gap: 16px;
+  }
+
+  .materias-list { max-height: 280px; }
+  .eventos-list  { max-height: 320px; }
+
+  .modal-close  { width: 32px; height: 32px; }
+  .modal-overlay { padding: 20px; }
+  .modal-header { padding: 20px 24px 16px; }
+  .modal-body   { padding: 20px 24px; }
+  .modal-footer { padding: 16px 24px 20px; }
+
+  .week-btn { width: 34px; height: 34px; }
+}
+
+/* ── LAPTOP (1024px+) ────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .app-main {
+    grid-template-columns: 1fr var(--sidebar-w);
+    padding: 20px 24px;
+    gap: 20px;
+    align-items: start;
+    min-height: calc(100vh - var(--header-h));
+  }
+
+  .app-header {
+    padding: 0 24px;
   }
 
   .sidebar {
-    position: static;
-    max-height: none;
+    position: sticky;
+    top: calc(var(--header-h) + 20px);
+    max-height: calc(100vh - var(--header-h) - 40px);
+    overflow-y: auto;
   }
-
-  .header-actions .btn-secondary { display: none; }
 }
 
-@media (max-width: 640px) {
-  .app-header {
-    padding: 0 16px;
-    gap: 10px;
-  }
+/* ── DESKTOP (1280px+) ───────────────────────────────────── */
+@media (min-width: 1280px) {
+  :root { --sidebar-w: 320px; }
+}
 
-  .app-main { padding: 12px; gap: 12px; }
-
-  .app-subtitle { display: none; }
-
-  .btn span { display: none; }
-  .btn { padding: 8px 10px; }
-
+/* Horario row en mobile: 2 columnas */
+@media (max-width: 639px) {
   .horario-row {
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto auto;
   }
-
   .horario-row .btn-remove-horario {
     grid-column: 2;
     grid-row: 1;
     justify-self: end;
   }
-
   .form-row { grid-template-columns: 1fr; }
 }
 
