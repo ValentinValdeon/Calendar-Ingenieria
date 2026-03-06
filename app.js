@@ -158,6 +158,7 @@ function setSyncIndicator(status) {
   if (status === 'syncing') btn.classList.add('syncing');
   if (status === 'ok')      btn.classList.add('sync-ok');
   if (status === 'error')   btn.classList.add('sync-error');
+  btn.hidden = (status === 'idle');
 }
 
 async function loadFromGist() {
@@ -806,8 +807,14 @@ function openModal(id) {
 }
 
 function closeModal(id) {
-  document.getElementById(id).setAttribute('hidden', '');
-  document.body.style.overflow = '';
+  const el = document.getElementById(id);
+  if (!el || el.hidden) return;
+  el.classList.add('is-closing');
+  el.addEventListener('animationend', () => {
+    el.classList.remove('is-closing');
+    el.setAttribute('hidden', '');
+    document.body.style.overflow = '';
+  }, { once: true });
 }
 
 function closeAllModals() {
@@ -1350,8 +1357,8 @@ async function connectGist() {
 }
 
 function showGistSyncBtn() {
-  const btn = document.getElementById('gist-sync-btn');
-  if (btn) btn.hidden = false;
+  // El botón solo se muestra mientras hay actividad (syncing/ok/error).
+  // No hacer nada aquí: setSyncIndicator() controla la visibilidad.
 }
 
 // ── EXPORT PNG ────────────────────────────────────────────
@@ -1418,7 +1425,12 @@ function closeHamburgerMenu() {
   const btn  = document.getElementById('btn-hamburger');
   const menu = document.getElementById('header-menu');
   btn.setAttribute('aria-expanded', 'false');
-  menu.setAttribute('hidden', '');
+  if (!menu || menu.hidden) return;
+  menu.classList.add('is-closing');
+  menu.addEventListener('animationend', () => {
+    menu.classList.remove('is-closing');
+    menu.setAttribute('hidden', '');
+  }, { once: true });
 }
 
 // ── DRAG TO MOVE HORARIOS ─────────────────────────────────
@@ -1665,7 +1677,7 @@ function setupBlockTooltip() {
       `<div class="tt-row">${escapeHtml(dia)} &nbsp;·&nbsp; ${escapeHtml(inicio)} – ${escapeHtml(fin)}</div>` +
       (lugar ? `<div class="tt-row tt-lugar">${escapeHtml(lugar)}</div>` : '');
 
-    tooltip.style.display = 'block';
+    tooltip.classList.add('tooltip-visible');
     tooltip.setAttribute('aria-hidden', 'false');
     positionTooltip(x, y);
   }
@@ -1685,7 +1697,7 @@ function setupBlockTooltip() {
 
   function hideTooltip() {
     hideTimer = setTimeout(() => {
-      tooltip.style.display = 'none';
+      tooltip.classList.remove('tooltip-visible');
       tooltip.setAttribute('aria-hidden', 'true');
     }, 80);
   }
@@ -1696,7 +1708,7 @@ function setupBlockTooltip() {
   });
 
   document.addEventListener('mousemove', e => {
-    if (tooltip.style.display === 'block') {
+    if (tooltip.classList.contains('tooltip-visible')) {
       const block = e.target.closest('.schedule-block');
       if (block) positionTooltip(e.clientX, e.clientY);
     }

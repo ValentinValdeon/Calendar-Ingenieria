@@ -9,6 +9,7 @@
 :root {
   /* Colores base */
   --bg:           #E2E7F0;
+  --bg-alt:       #EEF1F7;
   --surface:      #FFFFFF;
   --border:       #B8C2D4;
   --border-light: #CDD4E2;
@@ -152,7 +153,7 @@ body {
   border: 1px solid transparent;
   transition: background var(--transition), color var(--transition),
               border-color var(--transition), box-shadow var(--transition),
-              opacity var(--transition);
+              opacity var(--transition), transform var(--transition);
   white-space: nowrap;
   line-height: 1;
 }
@@ -164,6 +165,8 @@ body {
   outline-offset: 2px;
 }
 
+.btn:active:not(:disabled) { transform: scale(0.96); }
+
 .btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
 
 .btn-primary {
@@ -171,21 +174,22 @@ body {
   color: #fff;
   border-color: var(--indigo-600);
 }
-.btn-primary:hover { background: var(--indigo-700); border-color: var(--indigo-700); }
+.btn-primary:hover { background: var(--indigo-700); border-color: var(--indigo-700); box-shadow: var(--shadow-sm); }
+.btn-primary:active:not(:disabled) { background: var(--indigo-700); box-shadow: none; }
 
 .btn-outline {
   background: transparent;
   color: var(--indigo-600);
   border-color: var(--indigo-600);
 }
-.btn-outline:hover { background: var(--indigo-50); }
+.btn-outline:hover { background: var(--indigo-50); border-color: var(--indigo-700); }
 
 .btn-secondary {
   background: var(--surface);
   color: var(--text-secondary);
   border-color: var(--border);
 }
-.btn-secondary:hover { background: var(--bg); color: var(--text-primary); }
+.btn-secondary:hover { background: var(--bg); color: var(--text-primary); border-color: var(--text-muted); }
 
 .btn-ghost {
   background: transparent;
@@ -199,7 +203,8 @@ body {
   color: #fff;
   border-color: var(--danger);
 }
-.btn-danger:hover { background: #DC2626; }
+.btn-danger:hover { background: #DC2626; border-color: #DC2626; }
+.btn-danger:active:not(:disabled) { background: #B91C1C; border-color: #B91C1C; }
 
 .btn-icon {
   padding: 6px;
@@ -211,9 +216,10 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--transition), color var(--transition), transform var(--transition);
 }
 .btn-icon:hover { background: var(--bg); color: var(--text-secondary); }
+.btn-icon:active { transform: scale(0.88); }
 .btn-icon svg { width: 15px; height: 15px; }
 .btn-icon:focus-visible { outline: 2px solid var(--indigo-600); outline-offset: 2px; }
 
@@ -258,11 +264,13 @@ body {
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--transition), color var(--transition),
+              border-color var(--transition), transform var(--transition);
   flex-shrink: 0;
 }
 .week-btn svg { width: 16px; height: 16px; }
-.week-btn:hover { background: var(--bg); color: var(--text-primary); }
+.week-btn:hover { background: var(--bg); color: var(--text-primary); border-color: var(--text-muted); }
+.week-btn:active { transform: scale(0.92); }
 .week-btn:focus-visible { outline: 2px solid var(--indigo-600); outline-offset: 2px; }
 
 .week-info {
@@ -289,11 +297,12 @@ body {
   border-radius: 20px;
   padding: 3px 10px;
   cursor: pointer;
-  transition: background var(--transition);
+  transition: background var(--transition), border-color var(--transition), transform var(--transition);
   letter-spacing: 0.3px;
   text-transform: uppercase;
 }
-.btn-today:hover { background: var(--indigo-100); }
+.btn-today:hover { background: var(--indigo-100); border-color: var(--indigo-500); }
+.btn-today:active { transform: scale(0.94); }
 .btn-today:focus-visible { outline: 2px solid var(--indigo-600); outline-offset: 2px; }
 
 /* ── SCHEDULE GRID ───────────────────────────────────────── */
@@ -442,7 +451,8 @@ body {
   padding: 4px 6px;
   cursor: grab;
   overflow: hidden;
-  transition: filter var(--transition), box-shadow var(--transition), z-index 0ms;
+  transition: filter var(--transition), box-shadow var(--transition),
+              transform var(--transition), z-index 0ms;
   box-shadow: inset 3px 0 0 rgba(0,0,0,.20);
   display: flex;
   flex-direction: column;
@@ -455,6 +465,11 @@ body {
   filter: brightness(1.1);
   box-shadow: inset 3px 0 0 rgba(0,0,0,.25), var(--shadow-sm);
   z-index: 10;
+}
+
+.schedule-block:active {
+  filter: brightness(0.92);
+  transform: scale(0.97);
 }
 
 .schedule-block:focus-visible {
@@ -627,13 +642,20 @@ body {
   padding: 9px 10px;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
-  transition: background var(--transition), border-color var(--transition);
+  transition: background var(--transition), border-color var(--transition), transform var(--transition);
   cursor: pointer;
 }
 
 .materia-item:hover {
   background: var(--bg);
   border-color: var(--border);
+}
+
+.materia-item:active { transform: scale(0.99); }
+
+.materia-item:focus-visible {
+  outline: 2px solid var(--indigo-600);
+  outline-offset: -2px;
 }
 
 .materia-dot {
@@ -712,7 +734,8 @@ body {
 .materia-info-panel {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.28s ease, padding 0.2s ease;
+  opacity: 0;
+  transition: max-height 0.28s ease, padding 0.2s ease, opacity 0.2s ease;
   background: var(--bg-alt);
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   padding: 0 12px;
@@ -721,6 +744,7 @@ body {
 .materia-entry.expanded .materia-info-panel {
   max-height: 600px;
   padding: 10px 12px 12px;
+  opacity: 1;
 }
 
 /* Filas del panel */
@@ -748,8 +772,10 @@ body {
   text-decoration: none;
   word-break: break-all;
   font-size: 12px;
+  transition: color var(--transition);
 }
-.ip-link-anchor:hover { text-decoration: underline; }
+.ip-link-anchor:hover { color: var(--indigo-700); text-decoration: underline; }
+.ip-link-anchor:focus-visible { outline: 2px solid var(--indigo-600); outline-offset: 2px; border-radius: 2px; }
 
 .ip-profesor-nombre {
   font-weight: 500;
@@ -760,8 +786,10 @@ body {
   font-size: 11px;
   text-decoration: none;
   margin-left: 6px;
+  transition: color var(--transition);
 }
-.ip-profesor-mail:hover { color: var(--indigo-500); text-decoration: underline; }
+.ip-profesor-mail:hover { color: var(--indigo-600); text-decoration: underline; }
+.ip-profesor-mail:focus-visible { outline: 2px solid var(--indigo-600); outline-offset: 2px; border-radius: 2px; }
 
 .ip-cursada-body {
   display: flex;
@@ -826,14 +854,17 @@ body {
   color: var(--text-secondary);
   cursor: pointer;
   transition: background var(--transition), color var(--transition),
-              border-color var(--transition);
+              border-color var(--transition), transform var(--transition);
   white-space: nowrap;
 }
 
 .filter-btn:hover {
   background: var(--bg);
   color: var(--text-primary);
+  border-color: var(--text-muted);
 }
+
+.filter-btn:active { transform: scale(0.94); }
 
 .filter-btn.active {
   background: var(--indigo-600);
@@ -864,13 +895,20 @@ body {
   padding: 10px;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
-  transition: background var(--transition), border-color var(--transition);
+  transition: background var(--transition), border-color var(--transition), transform var(--transition);
   cursor: pointer;
 }
 
 .evento-item:hover {
   background: var(--bg);
   border-color: var(--border);
+}
+
+.evento-item:active { transform: scale(0.99); }
+
+.evento-item:focus-visible {
+  outline: 2px solid var(--indigo-600);
+  outline-offset: -2px;
 }
 
 .evento-item.proximo {
@@ -1017,7 +1055,20 @@ body {
 
 .modal-overlay[hidden] { display: none; }
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal-overlay.is-closing {
+  animation: fadeOut 150ms ease forwards;
+}
+
+.modal-overlay.is-closing .modal {
+  animation: slideDown 150ms ease forwards;
+}
+
+@keyframes fadeIn  { from { opacity: 0; }              to { opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; }              to { opacity: 0; } }
+@keyframes slideDown {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(12px); }
+}
 
 .modal {
   background: var(--surface);
@@ -1063,11 +1114,12 @@ body {
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--transition), color var(--transition), transform var(--transition);
 }
 
 .modal-close svg { width: 18px; height: 18px; }
 .modal-close:hover { background: var(--bg); color: var(--text-primary); }
+.modal-close:active { transform: scale(0.88); }
 .modal-close:focus-visible { outline: 2px solid var(--indigo-600); outline-offset: 2px; }
 
 .modal-body {
@@ -1193,12 +1245,18 @@ body {
   background: var(--surface);
   outline: none;
   width: 100%;
-  transition: border-color var(--transition);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.horario-row select:hover,
+.horario-row input:hover {
+  border-color: var(--text-muted);
 }
 
 .horario-row select:focus,
 .horario-row input:focus {
   border-color: var(--indigo-500);
+  box-shadow: 0 0 0 3px rgba(99,102,241,.12);
 }
 
 .btn-remove-horario {
@@ -1212,11 +1270,13 @@ body {
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--transition), color var(--transition), transform var(--transition);
   flex-shrink: 0;
 }
 
 .btn-remove-horario:hover { background: var(--danger-bg); color: var(--danger); }
+.btn-remove-horario:active { transform: scale(0.85); }
+.btn-remove-horario:focus-visible { outline: 2px solid var(--danger); outline-offset: 2px; }
 .btn-remove-horario svg { width: 15px; height: 15px; }
 
 .btn-add-horario {
@@ -1301,9 +1361,11 @@ details[open] .materia-extra-summary::before {
   justify-content: center;
   color: var(--text-muted);
   flex-shrink: 0;
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--transition), color var(--transition), transform var(--transition);
 }
 .btn-remove-row:hover { background: var(--danger-bg); color: var(--danger); }
+.btn-remove-row:active { transform: scale(0.85); }
+.btn-remove-row:focus-visible { outline: 2px solid var(--danger); outline-offset: 2px; }
 .btn-remove-row svg { width: 15px; height: 15px; }
 
 .btn-add-row {
@@ -1372,7 +1434,6 @@ details[open] .materia-extra-summary::before {
 /* ── TOAST ───────────────────────────────────────────────── */
 /* ── BLOCK TOOLTIP ───────────────────────────────────────── */
 #block-tooltip {
-  display: none;
   position: fixed;
   z-index: 300;
   background: #1e1e2e;
@@ -1386,6 +1447,16 @@ details[open] .materia-extra-summary::before {
   box-shadow: 0 4px 16px rgba(0,0,0,0.35);
   font-size: 12px;
   line-height: 1.5;
+  opacity: 0;
+  transform: scale(0.93) translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  visibility: hidden;
+}
+
+#block-tooltip.tooltip-visible {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  visibility: visible;
 }
 .tt-nombre {
   font-weight: 700;
@@ -1507,6 +1578,10 @@ details[open] .materia-extra-summary::before {
 }
 
 .header-menu[hidden] { display: none; }
+
+.header-menu.is-closing {
+  animation: menuDrop 120ms ease reverse forwards;
+}
 
 @keyframes menuDrop {
   from { opacity: 0; transform: translateY(-8px) scale(0.97); }
@@ -1792,7 +1867,14 @@ details[open] .materia-extra-summary::before {
   justify-content: center;
   color: var(--text-muted);
   transition: background var(--transition), color var(--transition),
-              border-color var(--transition), box-shadow var(--transition);
+              border-color var(--transition), box-shadow var(--transition),
+              transform var(--transition);
+  animation: syncBtnAppear 200ms ease;
+}
+
+@keyframes syncBtnAppear {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 .gist-sync-indicator[hidden] { display: none; }
@@ -1801,6 +1883,14 @@ details[open] .materia-extra-summary::before {
   background: var(--bg);
   color: var(--text-primary);
   box-shadow: var(--shadow-md);
+  transform: scale(1.08);
+}
+
+.gist-sync-indicator:active { transform: scale(0.90); }
+
+.gist-sync-indicator:focus-visible {
+  outline: 2px solid var(--indigo-600);
+  outline-offset: 3px;
 }
 
 .gist-sync-indicator .sync-icon {
