@@ -956,12 +956,18 @@ function renderStats() {
       <strong>${longestGapH}h</strong>
       <span>hueco libre mas largo <span class="stats-sub">${longestGapDay}</span></span>
     </div>` : ''}
-    <div class="stats-bars" aria-label="Minutos por dia">
+    <div class="stats-bars-title">Horas por dia</div>
+    <div class="stats-bars" aria-label="Horas por dia">
       ${dayOrder.map(d => {
         const min = blocksByDay[d].reduce((s, h) => s + (timeToMinutes(h.fin) - timeToMinutes(h.inicio)), 0);
-        const pct = Math.round((min / maxMin) * 100);
-        return `<div class="stats-bar ${min === 0 ? 'is-empty' : ''}" title="${d}: ${(min/60).toFixed(1)}h">
-          <div class="stats-bar-fill" style="height:${Math.max(2, pct)}%"></div>
+        const pct = Math.max(3, Math.round((min / maxMin) * 100));
+        const hrs = (min/60).toFixed(1);
+        return `<div class="stats-bar ${min === 0 ? 'is-empty' : ''}" title="${d}: ${hrs}h">
+          <div class="stats-bar-track">
+            <div class="stats-bar-fill" style="height:${pct}%">
+              <span class="stats-bar-value">${hrs}h</span>
+            </div>
+          </div>
           <span class="stats-bar-label">${d.slice(0,3)}</span>
         </div>`;
       }).join('')}
@@ -1838,6 +1844,9 @@ function printGrid() {
 }
 
 // ── HAMBURGER MENU ────────────────────────────────────────
+let hamburgerCloseTimer = null;
+const HAMBURGER_CLOSE_MS = 160; // debe matchear la duracion de la animacion de cierre
+
 function toggleHamburgerMenu() {
   const btn  = document.getElementById('btn-hamburger');
   const menu = document.getElementById('header-menu');
@@ -1846,6 +1855,12 @@ function toggleHamburgerMenu() {
   if (isOpen) {
     closeHamburgerMenu();
   } else {
+    // Si hay un cierre en curso, cancelarlo antes de abrir
+    if (hamburgerCloseTimer) {
+      clearTimeout(hamburgerCloseTimer);
+      hamburgerCloseTimer = null;
+      menu.classList.remove('is-closing');
+    }
     btn.setAttribute('aria-expanded', 'true');
     btn.setAttribute('aria-label', 'Cerrar menú');
     menu.removeAttribute('hidden');
@@ -1860,11 +1875,13 @@ function closeHamburgerMenu() {
   btn.setAttribute('aria-expanded', 'false');
   btn.setAttribute('aria-label', 'Abrir menú');
   if (!menu || menu.hidden) return;
+  if (hamburgerCloseTimer) clearTimeout(hamburgerCloseTimer);
   menu.classList.add('is-closing');
-  menu.addEventListener('animationend', () => {
+  hamburgerCloseTimer = setTimeout(() => {
     menu.classList.remove('is-closing');
     menu.setAttribute('hidden', '');
-  }, { once: true });
+    hamburgerCloseTimer = null;
+  }, HAMBURGER_CLOSE_MS);
 }
 
 // ── DRAG TO MOVE HORARIOS ─────────────────────────────────
