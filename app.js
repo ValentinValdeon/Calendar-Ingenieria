@@ -47,11 +47,30 @@ let state = { materias: [], eventos: [] };
 let currentWeekOffset = 0;   // 0 = semana actual, +1 = proxima, etc.
 let confirmCallback = null;
 let activeEventoFilter = 'all';
+let activeTagFilter = null;   // tag personalizada seleccionada (null = todas)
 let highlightedMateriaId = null;
+let isReadOnly = false;       // true cuando se carga via ?share= (solo lectura)
+let sharedByName = '';        // nombre del que compartio (en modo lectura)
 
 // ── UTILS ─────────────────────────────────────────────────
 function uuid() {
   return 'id-' + Math.random().toString(36).slice(2, 11) + Date.now().toString(36);
+}
+
+// Normaliza el estado: completa campos opcionales para datos viejos.
+// Garantiza que toda materia tenga `todos: []` y todo evento tenga
+// `checklist: []` y `tags: []`.
+function normalizeState(s) {
+  s.materias = (s.materias || []).map(m => ({
+    ...m,
+    todos: Array.isArray(m.todos) ? m.todos : [],
+  }));
+  s.eventos = (s.eventos || []).map(e => ({
+    ...e,
+    checklist: Array.isArray(e.checklist) ? e.checklist : [],
+    tags:       Array.isArray(e.tags)       ? e.tags       : [],
+  }));
+  return s;
 }
 
 function timeToMinutes(t) {
@@ -232,7 +251,7 @@ async function loadState() {
     try {
       setSyncIndicator('syncing');
       const remote = await loadFromGist();
-      state = { materias: remote.materias || [], eventos: remote.eventos || [] };
+      state = normalizeState({ materias: remote.materias || [], eventos: remote.eventos || [] });
       // Guardar copia local como caché
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       localStorage.setItem(STORAGE_VERSION_KEY, remote.version || '0000-00-00');
@@ -244,6 +263,10 @@ async function loadState() {
       setTimeout(() => setSyncIndicator('idle'), 3000);
       const raw = localStorage.getItem(STORAGE_KEY);
       state = raw ? JSON.parse(raw) : { materias: [], eventos: [] };
+      if (!state.materias && !state.eventos) {
+        // empty cache: dejar pasar al fallback de abajo
+      }
+      state = normalizeState(state);
       console.warn('loadFromGist failed, using local cache:', e);
     }
   } else {
@@ -255,15 +278,19 @@ async function loadState() {
       const remoteVersion = remote.version  || '0000-00-00';
       const localVersion  = localStorage.getItem(STORAGE_VERSION_KEY) || '0000-00-00';
       if (remoteVersion > localVersion) {
-        state = { materias: remote.materias || [], eventos: remote.eventos || [] };
+        state = normalizeState({ materias: remote.materias || [], eventos: remote.eventos || [] });
         saveState(remoteVersion);
       } else {
         const raw = localStorage.getItem(STORAGE_KEY);
-        state = raw ? JSON.parse(raw) : { materias: remote.materias || [], eventos: remote.eventos || [] };
+        state = normalizeState(raw ? JSON.parse(raw) : { materias: remote.materias || [], eventos: remote.eventos || [] });
       }
     } catch (e) {
       const raw = localStorage.getItem(STORAGE_KEY);
       state = raw ? JSON.parse(raw) : { materias: [], eventos: [] };
+      if (!state.materias && !state.eventos) {
+        // empty cache: dejar pasar al fallback de abajo
+      }
+      state = normalizeState(state);
     }
   }
 }
@@ -521,11 +548,14 @@ function renderGrid() {
 
   // Eventos de click en bloques
   container.querySelectorAll('.schedule-block').forEach(el => {
-    el.addEventListener('click', () => openEditMateria(el.dataset.materiaId));
+    el.addEventListener('click', () => {
+      if (isReadOnly) return;
+      openEditMateria(el.dataset.materiaId);
+    });
     el.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        openEditMateria(el.dataset.materiaId);
+        if (!isReadOnly) openEditMateria(el.dataset.materiaId);
       }
     });
   });
@@ -666,6 +696,12 @@ function renderMateriasList() {
             <div class="materia-nombre">${escapeHtml(mat.nombre)}</div>
             <div class="materia-horarios-count">${mat.horarios.length} horario${mat.horarios.length !== 1 ? 's' : ''}</div>
           </div>
+          ${(() => {
+            const todos = mat.todos || [];
+            const pending = todos.filter(t => !t.done).length;
+            if (todos.length === 0) return '';
+            return `<span class="todo-count-badge ${pending === 0 ? 'is-done' : ''}" title="${pending} tarea${pending !== 1 ? 's' : ''} pendiente${pending !== 1 ? 's' : ''}">${pending === 0 ? '✓' : pending}</span>`;
+          })()}
           <div class="materia-actions">
             <button class="btn-icon" aria-label="Editar ${escapeHtml(mat.nombre)}" data-action="edit-materia" data-id="${mat.id}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -746,10 +782,14 @@ function renderEventosList() {
   const list  = document.getElementById('eventos-list');
   const count = document.getElementById('eventos-count');
   count.textContent = state.eventos.length;
+  renderTagFilter();
 
   let filtered = state.eventos;
   if (activeEventoFilter !== 'all') {
     filtered = filtered.filter(ev => ev.tipo === activeEventoFilter);
+  }
+  if (activeTagFilter) {
+    filtered = filtered.filter(ev => (ev.tags || []).includes(activeTagFilter));
   }
 
   // Ordenar por fecha
@@ -773,6 +813,18 @@ function renderEventosList() {
     const past    = isPast(ev.fecha);
 
     const dl = daysLabel(ev.fecha);
+    // Checklist progress
+    const cl = ev.checklist || [];
+    const clDone = cl.filter(i => i.done).length;
+    const clAllDone = cl.length > 0 && clDone === cl.length;
+
+    // Tags (max 2, despues "+N")
+    const tags = ev.tags || [];
+    const tagsHtml = tags.length
+      ? tags.slice(0, 2).map(t => `<span class="tag-chip-sm">${escapeHtml(t)}</span>`).join('') +
+        (tags.length > 2 ? `<span class="tag-chip-sm">+${tags.length - 2}</span>` : '')
+      : '';
+
     return `
       <div class="evento-item${proximo ? ' proximo' : ''}" data-id="${ev.id}" style="${past ? 'opacity:0.55' : ''}" role="button" tabindex="0" aria-label="Editar evento ${ev.titulo}">
         <div class="evento-fecha-badge">
@@ -783,9 +835,11 @@ function renderEventosList() {
           <div class="evento-titulo">${escapeHtml(ev.titulo)}</div>
           <div class="evento-meta">
             <span class="evento-tipo-chip chip-${ev.tipo}">${TIPO_LABELS[ev.tipo]}</span>
+            ${tagsHtml}
             ${mat ? `<span class="evento-materia-dot" style="background:${mat.color}"></span>
               <span class="evento-materia-nombre">${escapeHtml(mat.nombre)}</span>` : ''}
             ${dl ? `<span class="days-chip ${dl.cls}">${dl.text}</span>` : ''}
+            ${cl.length > 0 ? `<span class="checklist-progress ${clAllDone ? 'is-done' : ''}">${clDone}/${cl.length}</span>` : ''}
           </div>
         </div>
         <div class="evento-actions">
@@ -834,9 +888,85 @@ function renderEventosList() {
 // ── RENDER COMPLETO ───────────────────────────────────────
 function renderAll() {
   renderGrid();
+  renderStats();
   renderMateriasList();
   renderEventosList();
   applyMateriaHighlight();
+}
+
+// ── STATS DE LA SEMANA ────────────────────────────────────
+function renderStats() {
+  const body = document.getElementById('stats-body');
+  if (!body) return;
+  const weekDates = getWeekDates(currentWeekOffset);
+  const blocksByDay = { Lunes:[], Martes:[], Miercoles:[], Jueves:[], Viernes:[] };
+  state.materias.forEach(mat => {
+    (mat.horarios || []).forEach(h => {
+      if (blocksByDay[h.dia]) blocksByDay[h.dia].push(h);
+    });
+  });
+
+  // 1. Total de horas cursadas esta semana
+  let totalMin = 0;
+  Object.values(blocksByDay).forEach(arr => {
+    arr.forEach(h => {
+      totalMin += timeToMinutes(h.fin) - timeToMinutes(h.inicio);
+    });
+  });
+  const totalHours = (totalMin / 60).toFixed(1);
+
+  // 2. Hueco libre mas largo
+  let longestGapMin = 0;
+  let longestGapDay = '';
+  Object.entries(blocksByDay).forEach(([dia, blocks]) => {
+    if (blocks.length < 2) return;
+    const sorted = blocks.slice().sort((a,b) => timeToMinutes(a.inicio) - timeToMinutes(b.inicio));
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const gap = timeToMinutes(sorted[i+1].inicio) - timeToMinutes(sorted[i].fin);
+      if (gap > longestGapMin) {
+        longestGapMin = gap;
+        longestGapDay = dia;
+      }
+    }
+  });
+
+  // 3. Dias con clase
+  const daysWithClass = Object.values(blocksByDay).filter(arr => arr.length > 0).length;
+  const totalMaterias = state.materias.length;
+
+  // 4. Mini bar chart: minutos por dia
+  const dayOrder = DIAS;
+  const maxMin = Math.max(1, ...dayOrder.map(d => {
+    return blocksByDay[d].reduce((s, h) => s + (timeToMinutes(h.fin) - timeToMinutes(h.inicio)), 0);
+  }));
+
+  const longestGapH = (longestGapMin / 60).toFixed(1);
+
+  body.innerHTML = `
+    <div class="stats-row">
+      <strong>${totalHours}h</strong>
+      <span>de clase <span class="stats-sub">esta semana</span></span>
+    </div>
+    <div class="stats-row ${daysWithClass === 0 ? 'is-empty' : ''}">
+      <strong>${daysWithClass}</strong>
+      <span>de 5 dias con clase <span class="stats-sub">${totalMaterias} materia${totalMaterias !== 1 ? 's' : ''}</span></span>
+    </div>
+    ${longestGapMin > 0 ? `
+    <div class="stats-row">
+      <strong>${longestGapH}h</strong>
+      <span>hueco libre mas largo <span class="stats-sub">${longestGapDay}</span></span>
+    </div>` : ''}
+    <div class="stats-bars" aria-label="Minutos por dia">
+      ${dayOrder.map(d => {
+        const min = blocksByDay[d].reduce((s, h) => s + (timeToMinutes(h.fin) - timeToMinutes(h.inicio)), 0);
+        const pct = Math.round((min / maxMin) * 100);
+        return `<div class="stats-bar ${min === 0 ? 'is-empty' : ''}" title="${d}: ${(min/60).toFixed(1)}h">
+          <div class="stats-bar-fill" style="height:${Math.max(2, pct)}%"></div>
+          <span class="stats-bar-label">${d.slice(0,3)}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
 }
 
 // ── MODAL HELPERS ─────────────────────────────────────────
@@ -1141,6 +1271,140 @@ function getProfesoresFromModal() {
     .filter(p => p.nombre); // descartar filas sin nombre
 }
 
+// ── CHECKLIST DE EVENTO ───────────────────────────────────
+function buildChecklistRow(item = {}, i) {
+  return `
+    <div class="checklist-row" data-index="${i}">
+      <input type="checkbox" class="checklist-done" ${item.done ? 'checked' : ''} aria-label="Hecho" />
+      <input type="text" class="form-input checklist-text" value="${escapeHtml(item.text || '')}" placeholder="Item (ej: Repasar cap. 5)" aria-label="Item del checklist" />
+      <button type="button" class="btn-remove-row" aria-label="Eliminar item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>`;
+}
+
+function renderChecklist(items) {
+  const list = document.getElementById('evento-checklist-list');
+  list.innerHTML = '';
+  (items || []).forEach((it, i) => {
+    const div = document.createElement('div');
+    div.innerHTML = buildChecklistRow(it, i);
+    const row = div.firstElementChild;
+    list.appendChild(row);
+    wireChecklistRow(row);
+  });
+}
+
+function addChecklistRow() {
+  const list = document.getElementById('evento-checklist-list');
+  const div  = document.createElement('div');
+  div.innerHTML = buildChecklistRow({}, list.querySelectorAll('.checklist-row').length);
+  const row = div.firstElementChild;
+  list.appendChild(row);
+  wireChecklistRow(row);
+  row.querySelector('.checklist-text').focus();
+}
+
+function wireChecklistRow(row) {
+  row.querySelector('.btn-remove-row').addEventListener('click', () => row.remove());
+}
+
+function getChecklistFromModal() {
+  return Array.from(document.querySelectorAll('#evento-checklist-list .checklist-row'))
+    .map(row => ({
+      text: row.querySelector('.checklist-text').value.trim(),
+      done: row.querySelector('.checklist-done').checked,
+    }))
+    .filter(it => it.text);
+}
+
+// ── TAGS DE EVENTO ────────────────────────────────────────
+function renderTagsInput(tags) {
+  const wrap = document.getElementById('evento-tags-list');
+  wrap.innerHTML = '';
+  (tags || []).forEach(t => addTagChip(t));
+}
+
+function addTagChip(text) {
+  const wrap = document.getElementById('evento-tags-list');
+  const chip = document.createElement('span');
+  chip.className = 'tag-chip';
+  chip.innerHTML = `<span class="tag-text">${escapeHtml(text)}</span>
+    <button type="button" class="tag-remove" aria-label="Quitar tag ${escapeHtml(text)}">&times;</button>`;
+  chip.querySelector('.tag-remove').addEventListener('click', () => chip.remove());
+  wrap.appendChild(chip);
+}
+
+function addTagFromInput() {
+  const input = document.getElementById('evento-tag-input');
+  const v = input.value.trim();
+  if (!v) return;
+  // Evitar duplicados
+  const existing = Array.from(document.querySelectorAll('#evento-tags-list .tag-text')).map(n => n.textContent);
+  if (existing.includes(v)) { input.value = ''; return; }
+  addTagChip(v);
+  input.value = '';
+}
+
+function getTagsFromModal() {
+  return Array.from(document.querySelectorAll('#evento-tags-list .tag-text'))
+    .map(n => n.textContent.trim())
+    .filter(Boolean);
+}
+
+// ── TODOS DE MATERIA ──────────────────────────────────────
+function buildTodoRow(t = {}, i) {
+  return `
+    <div class="todo-row" data-index="${i}">
+      <input type="checkbox" class="todo-done" ${t.done ? 'checked' : ''} aria-label="Hecho" />
+      <input type="text" class="form-input todo-text" value="${escapeHtml(t.text || '')}" placeholder="Tarea (ej: Leer cap. 5)" aria-label="Descripcion de la tarea" />
+      <input type="date" class="form-input todo-due" value="${escapeHtml(t.due || '')}" aria-label="Fecha de entrega" />
+      <button type="button" class="btn-remove-row" aria-label="Eliminar tarea">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>`;
+}
+
+function renderTodos(items) {
+  const list = document.getElementById('materia-todos-list');
+  list.innerHTML = '';
+  (items || []).forEach((t, i) => {
+    const div = document.createElement('div');
+    div.innerHTML = buildTodoRow(t, i);
+    const row = div.firstElementChild;
+    list.appendChild(row);
+    wireTodoRow(row);
+  });
+}
+
+function addTodoRow() {
+  const list = document.getElementById('materia-todos-list');
+  const div  = document.createElement('div');
+  div.innerHTML = buildTodoRow({}, list.querySelectorAll('.todo-row').length);
+  const row = div.firstElementChild;
+  list.appendChild(row);
+  wireTodoRow(row);
+  row.querySelector('.todo-text').focus();
+}
+
+function wireTodoRow(row) {
+  row.querySelector('.btn-remove-row').addEventListener('click', () => row.remove());
+}
+
+function getTodosFromModal() {
+  return Array.from(document.querySelectorAll('#materia-todos-list .todo-row'))
+    .map(row => ({
+      text: row.querySelector('.todo-text').value.trim(),
+      due:  row.querySelector('.todo-due').value,
+      done: row.querySelector('.todo-done').checked,
+    }))
+    .filter(t => t.text);
+}
+
 // ── MODAL MATERIA ─────────────────────────────────────────
 function openNewMateria() {
   document.getElementById('materia-id').value    = '';
@@ -1154,6 +1418,7 @@ function openNewMateria() {
   // Limpiar campos extra
   renderLinks([]);
   renderProfesores([]);
+  renderTodos([]);
   document.getElementById('reg-asistencia').value = '';
   document.getElementById('reg-nota').value        = '';
   document.getElementById('reg-desc').value        = '';
@@ -1175,6 +1440,7 @@ function openEditMateria(id) {
   // Poblar campos extra
   renderLinks(mat.links || []);
   renderProfesores(mat.profesores || []);
+  renderTodos(mat.todos || []);
   const reg = mat.regularizacion || {};
   document.getElementById('reg-asistencia').value = reg.asistenciaMin || '';
   document.getElementById('reg-nota').value        = reg.notaMin       || '';
@@ -1185,6 +1451,7 @@ function openEditMateria(id) {
   // Abrir <details> si hay datos extra
   const hasExtra = (mat.links && mat.links.length) ||
                    (mat.profesores && mat.profesores.length) ||
+                   (mat.todos && mat.todos.length) ||
                    reg.asistenciaMin || reg.notaMin || reg.descripcion ||
                    prom.notaMin || prom.descripcion;
   if (hasExtra) {
@@ -1229,7 +1496,18 @@ function saveMateria() {
     descripcion: document.getElementById('prom-desc').value.trim(),
   };
 
-  const matData = { id: id || uuid(), nombre, color, horarios, links, profesores, regularizacion, promocion };
+  const matData = { id: id || uuid(), nombre, color, horarios, links, profesores, regularizacion, promocion, todos: [] };
+
+  if (id) {
+    const idx = state.materias.findIndex(m => m.id === id);
+    // Preservar los todos existentes (se editan por separado)
+    matData.todos = state.materias[idx]?.todos || [];
+    state.materias[idx] = matData;
+    showToast(`Materia "${nombre}" actualizada`, 'success');
+  } else {
+    state.materias.push(matData);
+    showToast(`Materia "${nombre}" agregada`, 'success');
+  }
 
   if (id) {
     const idx = state.materias.findIndex(m => m.id === id);
@@ -1275,6 +1553,8 @@ function openNewEvento() {
   document.getElementById('evento-notas').value    = '';
   document.getElementById('modal-evento-title').textContent = 'Nuevo evento';
   populateMateriaSelect();
+  renderTagsInput([]);
+  renderChecklist([]);
   openModal('modal-evento');
   document.getElementById('evento-titulo').focus();
 }
@@ -1289,6 +1569,8 @@ function openEditEvento(id) {
   document.getElementById('evento-notas').value    = ev.notas || '';
   document.getElementById('modal-evento-title').textContent = 'Editar evento';
   populateMateriaSelect(ev.materiaId || '');
+  renderTagsInput(ev.tags || []);
+  renderChecklist(ev.checklist || []);
   openModal('modal-evento');
   document.getElementById('evento-titulo').focus();
 }
@@ -1300,6 +1582,8 @@ function saveEvento() {
   const tipo   = document.getElementById('evento-tipo').value;
   const notas  = document.getElementById('evento-notas').value.trim();
   const materiaId = document.getElementById('evento-materia').value;
+  const tags  = getTagsFromModal();
+  const checklist = getChecklistFromModal();
 
   if (!titulo) {
     showToast('Ingresa el titulo del evento', 'error');
@@ -1314,10 +1598,10 @@ function saveEvento() {
 
   if (id) {
     const idx = state.eventos.findIndex(e => e.id === id);
-    state.eventos[idx] = { id, titulo, fecha, tipo, notas, materiaId };
+    state.eventos[idx] = { id, titulo, fecha, tipo, notas, materiaId, tags, checklist };
     showToast(`Evento "${titulo}" actualizado`, 'success');
   } else {
-    state.eventos.push({ id: uuid(), titulo, fecha, tipo, notas, materiaId });
+    state.eventos.push({ id: uuid(), titulo, fecha, tipo, notas, materiaId, tags, checklist });
     showToast(`Evento "${titulo}" agregado`, 'success');
   }
 
@@ -1366,7 +1650,7 @@ function importData(file) {
       const imported = JSON.parse(e.target.result);
       if (!imported.materias || !imported.eventos) throw new Error('Formato invalido');
       const version = imported.version || new Date().toISOString().slice(0, 10);
-      state = { materias: imported.materias, eventos: imported.eventos };
+      state = normalizeState({ materias: imported.materias, eventos: imported.eventos });
       saveState(version);
       renderAll();
       showToast('Datos importados correctamente', 'success');
@@ -1463,7 +1747,7 @@ async function connectGist() {
     // Cargar datos del Gist
     const content = data.files[GIST_FILENAME].content;
     const remote  = JSON.parse(content);
-    state = { materias: remote.materias || [], eventos: remote.eventos || [] };
+    state = normalizeState({ materias: remote.materias || [], eventos: remote.eventos || [] });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     localStorage.setItem(STORAGE_VERSION_KEY, remote.version || '0000-00-00');
     renderAll();
@@ -1488,7 +1772,7 @@ async function exportPNG() {
   const target = document.getElementById('calendar-section');
   if (!target) { showToast('No se encontro la grilla', 'error'); return; }
 
-  showToast('Generando imagen…', 'info');
+  showToast('Generando imagen en alta resolución…', 'info');
 
   // Lazy-load dom-to-image-more from CDN
   if (!window.domtoimage) {
@@ -1502,20 +1786,41 @@ async function exportPNG() {
   }
 
   try {
-    const scale = window.devicePixelRatio || 2;
+    // Forzar el print-week-label a estar visible (sino no aparece en la imagen)
+    const printLabel = document.getElementById('print-week-label');
+    const wasHidden = printLabel?.hidden;
+    if (printLabel) {
+      printLabel.style.display = 'flex';
+    }
+
+    // Escalar a 2x o 3x segun dispositivo para mejor calidad
+    const scale = Math.max(2, window.devicePixelRatio || 1);
     const dataUrl = await window.domtoimage.toPng(target, {
       width:  target.offsetWidth  * scale,
       height: target.offsetHeight * scale,
+      bgcolor: '#ffffff',
+      cacheBust: true,
       style: {
         transform: `scale(${scale})`,
         transformOrigin: 'top left',
+        background: '#fff',
       },
     });
+
+    if (printLabel) {
+      printLabel.style.display = wasHidden ? '' : printLabel.style.display;
+    }
+
+    // Nombre del archivo con la semana
+    const monday = getMondayOfWeek(currentWeekOffset);
+    const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+    const fname = `calendario_${dateToLocalISO(monday)}_a_${dateToLocalISO(friday)}.png`;
+
     const a = document.createElement('a');
     a.href     = dataUrl;
-    a.download = 'calendario.png';
+    a.download = fname;
     a.click();
-    showToast('Imagen guardada como calendario.png', 'success');
+    showToast(`Imagen guardada como ${fname}`, 'success');
   } catch (e) {
     console.error('exportPNG error:', e);
     showToast('No se pudo generar la imagen', 'error');
@@ -1524,7 +1829,12 @@ async function exportPNG() {
 
 // ── PRINT / PDF ───────────────────────────────────────────
 function printGrid() {
+  // Asegurar que el print-week-label esté visible
+  const printLabel = document.getElementById('print-week-label');
+  if (printLabel) printLabel.style.display = 'flex';
   window.print();
+  // Restaurar después de imprimir
+  setTimeout(() => { if (printLabel) printLabel.style.display = ''; }, 100);
 }
 
 // ── HAMBURGER MENU ────────────────────────────────────────
@@ -1781,7 +2091,250 @@ function setupSwipeNavigation() {
   }, { passive: true });
 }
 
-// ── BLOCK TOOLTIP ─────────────────────────────────────────
+// ── BUSQUEDA GLOBAL / COMMAND PALETTE ─────────────────────
+let searchActiveIdx = -1;
+let searchResultsCache = [];
+
+function openSearch() {
+  if (isReadOnly) return;
+  const m = document.getElementById('modal-search');
+  m.removeAttribute('hidden');
+  setTimeout(() => document.getElementById('search-input').focus(), 30);
+  runSearch('');
+}
+
+function closeSearch() {
+  document.getElementById('modal-search').setAttribute('hidden', '');
+  document.getElementById('search-input').value = '';
+  searchActiveIdx = -1;
+}
+
+function runSearch(q) {
+  q = (q || '').toLowerCase().trim();
+  const results = [];
+  // Materias
+  state.materias.forEach(m => {
+    if (!q || m.nombre.toLowerCase().includes(q)) {
+      results.push({ type: 'materia', id: m.id, title: m.nombre, sub: `${(m.horarios||[]).length} horarios · ${(m.todos||[]).filter(t=>!t.done).length} tareas pendientes` });
+    }
+    // ToDos de la materia
+    (m.todos || []).forEach((t, i) => {
+      if (t.text.toLowerCase().includes(q)) {
+        results.push({ type: 'todo', id: `${m.id}::${i}`, title: t.text, sub: `Tarea de ${m.nombre}${t.due ? ' · ' + t.due : ''}${t.done ? ' · ✓ hecho' : ''}`, refMatId: m.id, refTodoIdx: i });
+      }
+    });
+  });
+  // Eventos
+  state.eventos.forEach(ev => {
+    const titleHit  = ev.titulo.toLowerCase().includes(q);
+    const notasHit  = (ev.notas || '').toLowerCase().includes(q);
+    const tagsHit   = (ev.tags || []).some(t => t.toLowerCase().includes(q));
+    const clHit     = (ev.checklist || []).some(c => c.text.toLowerCase().includes(q));
+    if (!q || titleHit || notasHit || tagsHit || clHit) {
+      const mat = ev.materiaId ? state.materias.find(m => m.id === ev.materiaId) : null;
+      const sub = `${ev.fecha}${mat ? ' · ' + mat.nombre : ''}${(ev.tags||[]).length ? ' · #' + (ev.tags||[]).join(' #') : ''}`;
+      results.push({ type: 'evento', id: ev.id, title: ev.titulo, sub });
+    }
+  });
+
+  searchResultsCache = results;
+  searchActiveIdx = results.length > 0 ? 0 : -1;
+  renderSearchResults(q);
+}
+
+function renderSearchResults(q) {
+  const wrap = document.getElementById('search-results');
+  if (searchResultsCache.length === 0) {
+    wrap.innerHTML = `<p class="search-empty">Sin resultados para "${escapeHtml(q)}".</p>`;
+    return;
+  }
+  // Agrupar por tipo
+  const groups = { materia: [], evento: [], todo: [] };
+  searchResultsCache.forEach((r, idx) => groups[r.type].push({ r, idx }));
+
+  const iconFor = {
+    materia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+    evento:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+    todo:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  };
+  const titles = { materia: 'Materias', evento: 'Eventos', todo: 'Tareas' };
+
+  function highlight(text) {
+    if (!q) return escapeHtml(text);
+    const idx = text.toLowerCase().indexOf(q);
+    if (idx < 0) return escapeHtml(text);
+    return escapeHtml(text.slice(0, idx)) + '<mark>' + escapeHtml(text.slice(idx, idx + q.length)) + '</mark>' + escapeHtml(text.slice(idx + q.length));
+  }
+
+  let html = '';
+  ['materia', 'evento', 'todo'].forEach(t => {
+    if (groups[t].length === 0) return;
+    html += `<div class="search-group"><div class="search-group-title">${titles[t]}</div>`;
+    groups[t].forEach(({ r, idx }) => {
+      const isActive = idx === searchActiveIdx ? ' is-active' : '';
+      html += `<div class="search-item${isActive}" data-result-idx="${idx}">
+        <div class="search-item-icon">${iconFor[t]}</div>
+        <div class="search-item-body">
+          <div class="search-item-title">${highlight(r.title)}</div>
+          <div class="search-item-sub">${highlight(r.sub)}</div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll('.search-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.dataset.resultIdx, 10);
+      selectSearchResult(idx);
+    });
+  });
+}
+
+function selectSearchResult(idx) {
+  const r = searchResultsCache[idx];
+  if (!r) return;
+  closeSearch();
+  if (r.type === 'materia') openEditMateria(r.id);
+  else if (r.type === 'evento') openEditEvento(r.id);
+  else if (r.type === 'todo')   openEditMateria(r.refMatId);
+}
+
+function setupSearch() {
+  const input = document.getElementById('search-input');
+  if (!input) return;
+  input.addEventListener('input', e => runSearch(e.target.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (searchResultsCache.length === 0) return;
+      searchActiveIdx = (searchActiveIdx + 1) % searchResultsCache.length;
+      renderSearchResults(input.value);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (searchResultsCache.length === 0) return;
+      searchActiveIdx = (searchActiveIdx - 1 + searchResultsCache.length) % searchResultsCache.length;
+      renderSearchResults(input.value);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchActiveIdx >= 0) selectSearchResult(searchActiveIdx);
+    } else if (e.key === 'Escape') {
+      closeSearch();
+    }
+  });
+  // Click fuera cierra
+  document.getElementById('modal-search').addEventListener('click', e => {
+    if (e.target.id === 'modal-search') closeSearch();
+  });
+}
+
+// ── COMPARTIR GRILLA PUBLICA ──────────────────────────────
+// Codifica el state en base64 (unicode-safe) y lo embebe en el hash de la URL.
+// Asi el receptor abre el link y entra en modo read-only sin tocar Gist ni storage.
+
+function b64Encode(str) {
+  return btoa(unescape(encodeURIComponent(str)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64Decode(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  return decodeURIComponent(escape(atob(str)));
+}
+
+function buildShareUrl(name) {
+  const payload = {
+    v: 1,
+    n: name || 'Alguien',
+    s: { materias: state.materias, eventos: state.eventos },
+  };
+  const enc = b64Encode(JSON.stringify(payload));
+  const base = location.origin + location.pathname;
+  return `${base}#share=${enc}`;
+}
+
+function tryLoadFromShareHash() {
+  const hash = location.hash || '';
+  const m = hash.match(/^#share=(.+)$/);
+  if (!m) return false;
+  try {
+    const json = b64Decode(m[1]);
+    const payload = JSON.parse(json);
+    if (!payload.s) throw new Error('payload invalido');
+    state = normalizeState(payload.s);
+    isReadOnly = true;
+    sharedByName = payload.n || 'Alguien';
+    return true;
+  } catch (e) {
+    console.warn('share hash invalido:', e);
+    return false;
+  }
+}
+
+function openShare() {
+  if (isReadOnly) return;
+  document.getElementById('share-name').value = localStorage.getItem('calendario_user_name') || '';
+  const url = buildShareUrl(document.getElementById('share-name').value);
+  document.getElementById('share-url').value = url;
+  document.getElementById('share-stats').innerHTML =
+    `<strong>${state.materias.length}</strong> materia${state.materias.length!==1?'s':''} · <strong>${state.eventos.length}</strong> evento${state.eventos.length!==1?'s':''} · ` +
+    `<span>link ~ <strong>${(url.length/1024).toFixed(1)} KB</strong></span>`;
+  openModal('modal-share');
+}
+
+function setupShare() {
+  const nameInput = document.getElementById('share-name');
+  if (nameInput) {
+    nameInput.addEventListener('input', () => {
+      document.getElementById('share-url').value = buildShareUrl(nameInput.value);
+    });
+  }
+  const copyBtn = document.getElementById('btn-copy-share');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      const input = document.getElementById('share-url');
+      input.select();
+      try {
+        await navigator.clipboard.writeText(input.value);
+        showToast('Link copiado al portapapeles', 'success');
+      } catch {
+        document.execCommand('copy');
+        showToast('Link copiado', 'success');
+      }
+    });
+  }
+  // Cerrar al click fuera
+  document.getElementById('modal-share').addEventListener('click', e => {
+    if (e.target.id === 'modal-share') closeModal('modal-share');
+  });
+}
+
+// ── READ-ONLY MODE ────────────────────────────────────────
+function applyReadOnlyUI() {
+  if (!isReadOnly) return;
+  // Banner
+  const banner = document.getElementById('readonly-banner');
+  if (banner) {
+    banner.removeAttribute('hidden');
+    document.getElementById('readonly-by').textContent = sharedByName;
+  }
+  // Ocultar todos los botones de crear/editar/eliminar/importar/compartir/sync
+  const hideSelectors = [
+    '#btn-new-materia', '#btn-new-evento',
+    '#btn-import', '#btn-export', '#btn-share',
+    '#btn-export-png', '#btn-print',
+    '#gist-sync-btn',
+  ];
+  hideSelectors.forEach(sel => {
+    const el = document.querySelector(sel);
+    if (el) el.style.display = 'none';
+  });
+  // Ocultar acciones inline (delete/edit) via clase
+  document.body.classList.add('is-readonly');
+}
+
+
 function setupBlockTooltip() {
   const tooltip = document.getElementById('block-tooltip');
   if (!tooltip) return;
@@ -1850,13 +2403,20 @@ function setupBlockTooltip() {
 
 // ── INIT: EVENT LISTENERS ─────────────────────────────────
 async function init() {
-  await loadState();
+  // Primero: ver si estamos en modo compartido (read-only)
+  const fromShare = tryLoadFromShareHash();
 
-  // Mostrar botón de sync si ya está configurado, si no → abrir setup
-  if (isGistConfigured()) {
-    showGistSyncBtn();
-  } else {
-    openGistSetup();
+  if (!fromShare) {
+    await loadState();
+  }
+
+  // Mostrar botón de sync si ya está configurado, si no → abrir setup (solo si NO es read-only)
+  if (!isReadOnly) {
+    if (isGistConfigured()) {
+      showGistSyncBtn();
+    } else {
+      openGistSetup();
+    }
   }
 
   // Gist sync button: click abre el modal de reconfigurar
@@ -1870,12 +2430,13 @@ async function init() {
   });
 
   // Header actions (desktop)
-  document.getElementById('btn-new-materia').addEventListener('click', openNewMateria);
-  document.getElementById('btn-new-evento').addEventListener('click', openNewEvento);
-  document.getElementById('btn-export').addEventListener('click', exportData);
+  document.getElementById('btn-new-materia').addEventListener('click', () => !isReadOnly && openNewMateria());
+  document.getElementById('btn-new-evento').addEventListener('click', () => !isReadOnly && openNewEvento());
+  document.getElementById('btn-export').addEventListener('click', () => !isReadOnly && exportData());
   document.getElementById('btn-export-png').addEventListener('click', exportPNG);
   document.getElementById('btn-print').addEventListener('click', printGrid);
   document.getElementById('btn-import').addEventListener('click', () => {
+    if (isReadOnly) return;
     document.getElementById('import-file-input').click();
   });
   document.getElementById('import-file-input').addEventListener('change', e => {
@@ -1884,6 +2445,12 @@ async function init() {
       e.target.value = '';
     }
   });
+  document.getElementById('btn-share').addEventListener('click', openShare);
+
+  // Search
+  document.getElementById('btn-search').addEventListener('click', openSearch);
+  setupSearch();
+  setupShare();
 
   // Hamburger toggle
   document.getElementById('btn-hamburger').addEventListener('click', toggleHamburgerMenu);
@@ -1894,7 +2461,9 @@ async function init() {
     if (!item) return;
     closeHamburgerMenu();
     const action = item.dataset.menuAction;
-    if      (action === 'new-materia') openNewMateria();
+    if      (action === 'search')      openSearch();
+    else if (action === 'share')       openShare();
+    else if (action === 'new-materia') openNewMateria();
     else if (action === 'new-evento')  openNewEvento();
     else if (action === 'export-png')  exportPNG();
     else if (action === 'print')       printGrid();
@@ -1943,10 +2512,24 @@ async function init() {
     confirmCallback = null;
   });
 
-  // Add horario / link / profesor
+  // Add horario / link / profesor / todo / checklist / tag
   document.getElementById('btn-add-horario').addEventListener('click', addHorarioRow);
   document.getElementById('btn-add-link').addEventListener('click', addLinkRow);
   document.getElementById('btn-add-profesor').addEventListener('click', addProfesorRow);
+  document.getElementById('btn-add-todo')?.addEventListener('click', addTodoRow);
+  document.getElementById('btn-add-checklist')?.addEventListener('click', addChecklistRow);
+
+  // Tag input: Enter o coma agrega tag
+  const tagInput = document.getElementById('evento-tag-input');
+  if (tagInput) {
+    tagInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        addTagFromInput();
+      }
+    });
+    tagInput.addEventListener('blur', addTagFromInput);
+  }
 
   // Close modals
   document.querySelectorAll('[data-close]').forEach(btn => {
@@ -1965,6 +2548,13 @@ async function init() {
     if (e.key === 'Escape') {
       closeAllModals();
       closeHamburgerMenu();
+      return;
+    }
+
+    // Ctrl+K o Cmd+K: abrir busqueda
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k' && !isReadOnly) {
+      e.preventDefault();
+      openSearch();
       return;
     }
 
@@ -2007,6 +2597,11 @@ async function init() {
 
   // Render inicial
   renderAll();
+
+  // Si estamos en modo read-only, aplicar la UI
+  if (isReadOnly) {
+    applyReadOnlyUI();
+  }
 
   // Tooltip sobre bloques del grid (delegación global)
   setupBlockTooltip();

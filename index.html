@@ -32,6 +32,13 @@
 
     <!-- Acciones desktop (ocultas en mobile) -->
     <div class="header-actions">
+      <button class="btn btn-ghost btn-search" id="btn-search" aria-label="Buscar" title="Buscar (Ctrl+K)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <span class="btn-label">Buscar</span>
+        <kbd class="kbd-hint">Ctrl K</kbd>
+      </button>
       <button class="btn btn-secondary" id="btn-import" aria-label="Importar datos desde JSON">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -63,6 +70,13 @@
         </svg>
         <span class="btn-label">Imprimir</span>
       </button>
+      <button class="btn btn-secondary" id="btn-share" aria-label="Compartir grilla publica de solo lectura">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+        <span class="btn-label">Compartir</span>
+      </button>
       <button class="btn btn-outline" id="btn-new-evento" aria-label="Agregar nueva fecha importante">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="10"></circle>
@@ -90,6 +104,12 @@
 
   <!-- Menú desplegable mobile (fuera del header para posicionamiento correcto) -->
   <div class="header-menu" id="header-menu" hidden>
+    <button class="header-menu-item" data-menu-action="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      Buscar
+    </button>
     <button class="header-menu-item" data-menu-action="new-materia">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M12 20h9"></path>
@@ -129,6 +149,13 @@
         <line x1="12" y1="3" x2="12" y2="15"></line>
       </svg>
       Importar datos
+    </button>
+    <button class="header-menu-item" data-menu-action="share">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+      Compartir
     </button>
     <button class="header-menu-item" data-menu-action="export">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -182,6 +209,21 @@
     <!-- COLUMNA DERECHA: PANEL DE EVENTOS + MATERIAS -->
     <aside class="sidebar" aria-label="Panel lateral">
 
+      <!-- Stats de la semana -->
+      <div class="sidebar-card stats-card">
+        <div class="sidebar-card-header">
+          <h2 class="sidebar-card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            Esta semana
+          </h2>
+        </div>
+        <div class="stats-body" id="stats-body">
+          <!-- Generado por JS -->
+        </div>
+      </div>
+
       <!-- Panel de materias -->
       <div class="sidebar-card">
         <div class="sidebar-card-header">
@@ -216,6 +258,7 @@
           <button class="filter-btn" data-filter="final">Final</button>
           <button class="filter-btn" data-filter="entrega">Entrega</button>
           <button class="filter-btn" data-filter="otro">Otro</button>
+          <div class="eventos-tag-filter" id="eventos-tag-filter"></div>
         </div>
         <div class="eventos-list" id="eventos-list">
           <!-- Generado por JS -->
@@ -224,6 +267,64 @@
 
     </aside>
   </main>
+
+  <!-- Banner de modo lectura (solo aparece cuando isReadOnly) -->
+  <div class="readonly-banner" id="readonly-banner" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+    </svg>
+    <span>Modo lectura — <strong id="readonly-by"></strong> te está compartiendo esta grilla. No podés hacer cambios.</span>
+  </div>
+
+  <!-- ===== COMMAND PALETTE / BUSQUEDA GLOBAL ===== -->
+  <div class="modal-overlay" id="modal-search" role="dialog" aria-modal="true" aria-labelledby="search-title" hidden>
+    <div class="modal modal-search">
+      <div class="search-input-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="search-input" class="search-input" placeholder="Buscar materias, eventos, tareas..." aria-label="Buscar" />
+        <kbd class="kbd-hint">Esc</kbd>
+      </div>
+      <div class="search-results" id="search-results">
+        <p class="search-empty">Empezá a tipear para buscar.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: COMPARTIR ===== -->
+  <div class="modal-overlay" id="modal-share" role="dialog" aria-modal="true" aria-labelledby="share-title" hidden>
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2 class="modal-title" id="share-title">Compartir grilla</h2>
+        <button class="modal-close" aria-label="Cerrar" data-close="modal-share">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="share-desc">Compartí tu grilla con un compañero. El link es <strong>read-only</strong>: el otro puede verla pero no editarla. Funciona aunque tengas Gist configurado — los datos van en el link, no en tu cuenta.</p>
+        <div class="form-group">
+          <label for="share-name" class="form-label">Tu nombre (opcional)</label>
+          <input type="text" id="share-name" class="form-input" placeholder="Ej: Juan Perez" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label for="share-url" class="form-label">Link para compartir</label>
+          <div class="share-url-wrap">
+            <input type="text" id="share-url" class="form-input" readonly />
+            <button type="button" class="btn btn-primary" id="btn-copy-share">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              Copiar
+            </button>
+          </div>
+        </div>
+        <div class="share-stats" id="share-stats"></div>
+      </div>
+    </div>
+  </div>
 
   <!-- ===== MODAL: MATERIA ===== -->
   <div class="modal-overlay" id="modal-materia" role="dialog" aria-modal="true" aria-labelledby="modal-materia-title" hidden>
@@ -297,6 +398,18 @@
                   <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
                 Agregar profesor
+              </button>
+            </div>
+
+            <!-- ToDos -->
+            <div class="form-group">
+              <label class="form-label">Tareas / ToDo</label>
+              <div class="todos-list" id="materia-todos-list"></div>
+              <button type="button" class="btn btn-ghost btn-add-row" id="btn-add-todo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Agregar tarea
               </button>
             </div>
 
@@ -389,6 +502,25 @@
         <div class="form-group">
           <label for="evento-notas" class="form-label">Notas <span class="form-label-optional">(opcional)</span></label>
           <textarea id="evento-notas" class="form-input form-textarea" placeholder="Ej: Temas del parcial, lugar, etc." rows="3"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tags <span class="form-label-optional">(separalas con Enter o coma)</span></label>
+          <div class="tags-input-wrap">
+            <div class="tags-list" id="evento-tags-list"></div>
+            <input type="text" id="evento-tag-input" class="form-input form-input-sm tag-input" placeholder="laboratorio, consulta, recuperatorio..." />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Checklist <span class="form-label-optional">(temas, cosas a llevar, etc.)</span></label>
+          <div class="checklist-list" id="evento-checklist-list"></div>
+          <button type="button" class="btn btn-ghost btn-add-row" id="btn-add-checklist">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Agregar item
+          </button>
         </div>
       </div>
       <div class="modal-footer">
