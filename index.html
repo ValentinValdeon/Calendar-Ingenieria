@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Calendario Facultad</title>
+  <meta name="description" content="Calendario académico para ingeniería: grilla semanal de materias, fechas importantes (parciales, finales, entregas) y sincronización entre dispositivos." />
+  <meta name="theme-color" content="#4F46E5" />
+  <title>Calendario — Agenda Universitaria</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -80,9 +82,9 @@
 
     <!-- Botón hamburguesa (solo mobile) -->
     <button class="btn-hamburger" id="btn-hamburger" aria-label="Abrir menú" aria-expanded="false" aria-controls="header-menu">
-      <span class="hamburger-bar"></span>
-      <span class="hamburger-bar"></span>
-      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar" aria-hidden="true"></span>
+      <span class="hamburger-bar" aria-hidden="true"></span>
+      <span class="hamburger-bar" aria-hidden="true"></span>
     </button>
   </header>
 
@@ -143,6 +145,12 @@
 
     <!-- COLUMNA IZQUIERDA: GRILLA + NAV SEMANA -->
     <section class="calendar-section" id="calendar-section" aria-label="Grilla semanal">
+
+      <!-- Etiqueta de semana solo visible en print -->
+      <div class="print-week-label" id="print-week-label">
+        <span class="print-week-main" id="print-week-main">Semana</span>
+        <span class="print-week-sub">Calendario Facultad</span>
+      </div>
 
       <!-- Navegacion semanal -->
       <div class="week-nav">

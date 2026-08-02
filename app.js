@@ -26,12 +26,18 @@ const MATERIA_COLORS = [
   '#6366F1', // indigo2
 ];
 
-// Colores de texto para cada color de materia (blanco o negro segun contraste)
+// Colores de texto para cada color de materia (blanco o negro segun contraste WCAG AA)
 const COLOR_TEXT = {
-  '#4F46E5': '#fff', '#0EA5E9': '#fff', '#10B981': '#fff',
-  '#F59E0B': '#fff', '#EF4444': '#fff', '#8B5CF6': '#fff',
-  '#EC4899': '#fff', '#14B8A6': '#fff', '#F97316': '#fff',
-  '#6366F1': '#fff',
+  '#4F46E5': '#fff', // indigo  - ok
+  '#0EA5E9': '#fff', // sky     - ok
+  '#10B981': '#fff', // emerald - ok
+  '#F59E0B': '#1F2937', // amber   - blanco no contrastaba (2.0:1), uso gris oscuro
+  '#EF4444': '#fff', // red     - ok
+  '#8B5CF6': '#fff', // violet  - ok
+  '#EC4899': '#fff', // pink    - ok
+  '#14B8A6': '#fff', // teal    - ok
+  '#F97316': '#fff', // orange  - ok
+  '#6366F1': '#fff', // indigo2 - ok
 };
 
 // Datos iniciales: se cargan desde data.json la primera vez (ver loadState)
@@ -83,6 +89,15 @@ function isToday(date) {
   return date.getDate() === now.getDate() &&
          date.getMonth() === now.getMonth() &&
          date.getFullYear() === now.getFullYear();
+}
+
+// "YYYY-MM-DD" en hora local (NO UTC). Necesario para comparar con ev.fecha que
+// también se guarda en local (el input type="date devuelve local).
+function dateToLocalISO(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 function formatDateShort(dateStr) {
@@ -274,7 +289,11 @@ function renderGrid() {
   const friday = weekDates[4];
   const label  = document.getElementById('week-label');
   const fmtDate = d => `${d.getDate()} ${MESES_SHORT[d.getMonth()]}`;
-  label.textContent = `${fmtDate(monday)} — ${fmtDate(friday)} ${friday.getFullYear()}`;
+  const weekText = `${fmtDate(monday)} — ${fmtDate(friday)} ${friday.getFullYear()}`;
+  label.textContent = weekText;
+  // Espejo para print
+  const printLabel = document.getElementById('print-week-main');
+  if (printLabel) printLabel.textContent = weekText;
 
   // Recolectar todos los bloques por dia
   const blocksByDay = { Lunes:[], Martes:[], Miercoles:[], Jueves:[], Viernes:[] };
@@ -296,8 +315,16 @@ function renderGrid() {
           <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
         </svg>
         <h3>Sin materias cargadas</h3>
-        <p>Agrega tu primera materia para ver la grilla semanal</p>
+        <p>Agregá tu primera materia para empezar a ver la grilla semanal.</p>
+        <button type="button" class="btn btn-primary grid-empty-cta" id="btn-grid-empty-add">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+          Agregar primera materia
+        </button>
       </div>`;
+    const cta = document.getElementById('btn-grid-empty-add');
+    if (cta) cta.addEventListener('click', openNewMateria);
     return;
   }
 
@@ -325,7 +352,7 @@ function renderGrid() {
   // Eventos de la semana actual
   const weekEventsByDay = { Lunes:[], Martes:[], Miercoles:[], Jueves:[], Viernes:[] };
   weekDates.forEach((date, i) => {
-    const dateStr = date.toISOString().slice(0, 10);
+    const dateStr = dateToLocalISO(date);
     state.eventos.forEach(ev => {
       if (ev.fecha === dateStr) weekEventsByDay[DIAS[i]].push(ev);
     });
@@ -395,8 +422,11 @@ function renderGrid() {
       evBadges = '<div class="day-event-badges">' +
         events.map(ev => {
           const mat       = ev.materiaId ? state.materias.find(m => m.id === ev.materiaId) : null;
-          const bgColor   = mat ? mat.color + '28' : '#F59E0B28';
-          const textColor = mat ? mat.color : '#92400E';
+          // Sin materia → color de "otro" (amber suave)
+          const baseColor = mat ? mat.color : '#F59E0B';
+          // Texto oscuro para colores claros, claro para colores oscuros
+          const textColor = (mat && COLOR_TEXT[mat.color] === '#fff') ? mat.color : '#1F2937';
+          const bgColor   = baseColor + '28';
           const label     = ev.titulo.length > 14 ? ev.titulo.slice(0, 13) + '…' : ev.titulo;
           return `<span class="event-badge" style="background:${bgColor};color:${textColor};" title="${escapeHtml(ev.titulo)}">
             <svg width="6" height="6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="10"/></svg>
@@ -539,7 +569,12 @@ function renderMateriasList() {
   count.textContent = state.materias.length;
 
   if (state.materias.length === 0) {
-    list.innerHTML = '<p class="materia-empty">Sin materias. Agrega la primera.</p>';
+    list.innerHTML = `
+      <div class="sidebar-empty">
+        <p>Sin materias todavía.</p>
+        <button type="button" class="btn btn-outline btn-sm" id="btn-sidebar-empty-materia">Agregar materia</button>
+      </div>`;
+    document.getElementById('btn-sidebar-empty-materia')?.addEventListener('click', openNewMateria);
     return;
   }
 
@@ -721,7 +756,13 @@ function renderEventosList() {
   filtered = filtered.slice().sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   if (filtered.length === 0) {
-    list.innerHTML = '<p class="eventos-empty">Sin fechas importantes.</p>';
+    const isFiltered = activeEventoFilter !== 'all';
+    list.innerHTML = `
+      <div class="sidebar-empty">
+        <p>${isFiltered ? 'Sin eventos de este tipo.' : 'Sin fechas importantes todavía.'}</p>
+        ${!isFiltered ? '<button type="button" class="btn btn-outline btn-sm" id="btn-sidebar-empty-evento">Agregar evento</button>' : ''}
+      </div>`;
+    document.getElementById('btn-sidebar-empty-evento')?.addEventListener('click', openNewEvento);
     return;
   }
 
@@ -799,21 +840,71 @@ function renderAll() {
 }
 
 // ── MODAL HELPERS ─────────────────────────────────────────
+// Guarda el elemento que tenía foco antes de abrir el modal, para restaurarlo al cerrar
+let lastFocusedBeforeModal = null;
+// Mapa de modalId -> handler de focus trap (para poder removerlo correctamente)
+const focusTrapHandlers = new WeakMap();
+
+function getFocusableElements(root) {
+  // Selector estándar de elementos focusables
+  const sel = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  return Array.from(root.querySelectorAll(sel)).filter(el => {
+    return el.offsetParent !== null || el === document.activeElement;
+  });
+}
+
+function trapFocus(modalEl, e) {
+  if (e.key !== 'Tab') return;
+  const focusables = getFocusableElements(modalEl);
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last  = focusables[focusables.length - 1];
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
 function openModal(id) {
   const el = document.getElementById(id);
+  if (!el || !el.hidden) return;
+  lastFocusedBeforeModal = document.activeElement;
   el.removeAttribute('hidden');
-  el.querySelector('[data-close]')?.focus();
+  // Focus primer input del modal, o el close como fallback
+  const firstInput = el.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+  const target = firstInput || el.querySelector('[data-close]');
+  if (target) {
+    // Pequeño delay para que el modal se renderice antes de enfocar
+    setTimeout(() => target.focus(), 30);
+  }
   document.body.style.overflow = 'hidden';
+  // Guardar referencia estable del handler para poder removerlo después
+  const handler = trapFocus.bind(null, el);
+  focusTrapHandlers.set(el, handler);
+  el.addEventListener('keydown', handler);
 }
 
 function closeModal(id) {
   const el = document.getElementById(id);
   if (!el || el.hidden) return;
+  const handler = focusTrapHandlers.get(el);
+  if (handler) {
+    el.removeEventListener('keydown', handler);
+    focusTrapHandlers.delete(el);
+  }
   el.classList.add('is-closing');
   el.addEventListener('animationend', () => {
     el.classList.remove('is-closing');
     el.setAttribute('hidden', '');
     document.body.style.overflow = '';
+    // Restaurar foco al elemento que abrió el modal
+    if (lastFocusedBeforeModal && document.contains(lastFocusedBeforeModal)) {
+      lastFocusedBeforeModal.focus();
+    }
+    lastFocusedBeforeModal = null;
   }, { once: true });
 }
 
@@ -822,6 +913,19 @@ function closeAllModals() {
 }
 
 // ── COLOR PICKER ──────────────────────────────────────────
+const COLOR_NAMES = {
+  '#4F46E5': 'indigo',
+  '#0EA5E9': 'celeste',
+  '#10B981': 'esmeralda',
+  '#F59E0B': 'ambar',
+  '#EF4444': 'rojo',
+  '#8B5CF6': 'violeta',
+  '#EC4899': 'rosa',
+  '#14B8A6': 'turquesa',
+  '#F97316': 'naranja',
+  '#6366F1': 'indigo claro',
+};
+
 function renderColorPicker(selectedColor) {
   const picker = document.getElementById('color-picker');
   picker.innerHTML = MATERIA_COLORS.map((c, i) => `
@@ -831,7 +935,8 @@ function renderColorPicker(selectedColor) {
       data-color="${c}"
       role="radio"
       aria-checked="${c === selectedColor}"
-      aria-label="Color ${i + 1}"
+      aria-label="Color ${COLOR_NAMES[c] || c} (${c})"
+      title="${COLOR_NAMES[c] || c}"
       tabindex="${c === selectedColor ? '0' : '-1'}"
     ></button>
   `).join('');
@@ -846,6 +951,23 @@ function renderColorPicker(selectedColor) {
       swatch.classList.add('selected');
       swatch.setAttribute('aria-checked', 'true');
       swatch.setAttribute('tabindex', '0');
+    });
+
+    // Soporte teclado: flechas para navegar entre swatches
+    swatch.addEventListener('keydown', e => {
+      const swatches = Array.from(picker.querySelectorAll('.color-swatch'));
+      const idx = swatches.indexOf(swatch);
+      let target = -1;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        target = (idx + 1) % swatches.length;
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        target = (idx - 1 + swatches.length) % swatches.length;
+      }
+      if (target >= 0) {
+        e.preventDefault();
+        swatches[target].click();
+        swatches[target].focus();
+      }
     });
   });
 }
@@ -1415,6 +1537,7 @@ function toggleHamburgerMenu() {
     closeHamburgerMenu();
   } else {
     btn.setAttribute('aria-expanded', 'true');
+    btn.setAttribute('aria-label', 'Cerrar menú');
     menu.removeAttribute('hidden');
     // Focus primer item
     menu.querySelector('.header-menu-item')?.focus();
@@ -1425,6 +1548,7 @@ function closeHamburgerMenu() {
   const btn  = document.getElementById('btn-hamburger');
   const menu = document.getElementById('header-menu');
   btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('aria-label', 'Abrir menú');
   if (!menu || menu.hidden) return;
   menu.classList.add('is-closing');
   menu.addEventListener('animationend', () => {
@@ -1841,13 +1965,17 @@ async function init() {
     if (e.key === 'Escape') {
       closeAllModals();
       closeHamburgerMenu();
+      return;
     }
 
     // Atajos de teclado — ignorar si el foco está en un campo de texto
     const tag = e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-    // Ignorar si hay un modal abierto (excepto Escape, ya manejado)
-    if (document.querySelector('.modal-overlay[style*="flex"]')) return;
+    // Ignorar si hay un modal abierto (cualquier modal visible)
+    if (document.querySelector('.modal-overlay:not([hidden])')) return;
+    // Ignorar si el menú hamburguesa está abierto
+    if (document.getElementById('header-menu') &&
+        !document.getElementById('header-menu').hidden) return;
 
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
