@@ -1515,15 +1515,6 @@ function saveMateria() {
     showToast(`Materia "${nombre}" agregada`, 'success');
   }
 
-  if (id) {
-    const idx = state.materias.findIndex(m => m.id === id);
-    state.materias[idx] = matData;
-    showToast(`Materia "${nombre}" actualizada`, 'success');
-  } else {
-    state.materias.push(matData);
-    showToast(`Materia "${nombre}" agregada`, 'success');
-  }
-
   saveState();
   closeModal('modal-materia');
   renderAll();
